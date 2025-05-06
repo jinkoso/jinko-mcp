@@ -1,24 +1,12 @@
 # Hotel Booking MCP Server
 
-This repository contains a Machine Conversation Protocol (MCP) server for hotel booking, which allows LLMs to search for hotels, get hotel details, and book hotels through the Jinko Travel BFF API.
+This MCP (Machine Conversation Protocol) server provides tools for LLMs to search for hotels, get hotel details, and book hotels through the Jinko Travel BFF API.
 
 ## Features
 
 1. **Search Hotels**: Search for available hotels based on location, dates, and other criteria
 2. **Get Hotel Details**: Get detailed information about a specific hotel by ID
 3. **Book Hotel**: Book a hotel by creating a quote and returning a payment link
-
-## Session Management
-
-The server maintains a session to store hotel search results, allowing for efficient retrieval of hotel details without making additional API calls.
-
-## Running the Server
-
-```bash
-npm run start
-```
-
-The server will run on http://localhost:54117. This MCP server uses the HttpServerTransport, which allows it to be accessed by LLM clients that support the MCP protocol.
 
 ## Tools
 
@@ -59,23 +47,24 @@ Book a hotel by creating a quote and returning a payment link.
 - `check_out_date`: Check-out date (YYYY-MM-DD)
 - `opaque_rate_data`: Opaque rate data from availability response
 
-## API Endpoints
+## Session Management
 
-The server uses the following API endpoints from the Jinko Travel BFF:
+The server maintains a session to store hotel search results, allowing for efficient retrieval of hotel details without making additional API calls.
 
-- `/api/v1/hotels/availability`: Search for available hotels
-- `/api/v1/hotels/{hotel_id}`: Get hotel details
-- `/api/v1/booking/quote/schedule`: Schedule a quote
-- `/api/v1/booking/quote/pull/{quote_id}`: Pull quote status and details
+## Resources
 
-## Facilities Data
-
-The server uses the facilities data from `facilities.json` to provide information about hotel facilities. This data is exposed as resources in the MCP server, allowing LLMs to access it directly.
-
-### Available Resources
+The server exposes the following resources:
 
 1. **facilities**: Complete list of all hotel facilities with translations
 2. **facilities-by-id**: Map of facilities indexed by their ID for easy lookup
 3. **facility-{id}**: Individual facility by ID (e.g., facility-47 for WiFi)
 
 These resources can be accessed using the MCP resources/read method.
+
+## Running the Server
+
+```bash
+npm run start
+```
+
+The server will run on http://localhost:54117 by default.

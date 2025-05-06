@@ -1,0 +1,39 @@
+{
+  "name": "jinko-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Jinko Travel BFF",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "jinko-mcp": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod 755 build/index.js",
+    "start": "node --loader ts-node/esm src/hotel-mcp/server.ts"
+  },
+  "files": [
+    "build"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jinkocx/jinko-mcp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jinkocx/jinko-mcp/issues"
+  },
+  "homepage": "https://github.com/jinkocx/jinko-mcp#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}

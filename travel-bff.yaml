@@ -1,0 +1,4407 @@
+openapi: 3.1.0
+info:
+  title: Jinko Travel BFF API
+  description: '
+
+    Backend-for-Frontend (BFF) service for the Jinko Travel platform.
+
+
+    This API provides endpoints for:
+
+    - Managing travel packages and static offers
+
+    - Creating quotes and bookings
+
+    - Handling payments via Stripe
+
+    '
+  version: 0.3.1
+  contact:
+    name: Jinko Travel Team
+    email: support@jinkotravel.com
+    url: https://jinkotravel.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+paths:
+  /api/v1/booking/customers:
+    post:
+      tags:
+      - booking
+      summary: Create Customer
+      description: Create a new customer.
+      operationId: create_customer_api_v1_booking_customers_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerCreate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/booking/customers/{customer_id}:
+    put:
+      tags:
+      - booking
+      summary: Update Customer
+      description: Update an existing customer.
+      operationId: update_customer_api_v1_booking_customers__customer_id__put
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Customer Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/booking/customers/{customer_id}/passengers:
+    post:
+      tags:
+      - booking
+      summary: Create Passenger
+      description: Create a new passenger for a customer.
+      operationId: create_passenger_api_v1_booking_customers__customer_id__passengers_post
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Customer Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PassengerBase'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PassengerRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/booking/quote/{quote_id}:
+    get:
+      tags:
+      - booking
+      summary: Get Quote
+      description: 'Get a quote by its ID.
+
+
+        Returns the quote details including:
+
+        - Quoted offer information
+
+        - Passenger type counts
+
+        - Final price
+
+        - Payment authorization details'
+      operationId: get_quote_api_v1_booking_quote__quote_id__get
+      parameters:
+      - name: quote_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Quote Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/booking/quote/schedule:
+    post:
+      tags:
+      - booking
+      summary: Schedule Quote
+      description: 'Schedule a quote generation task to run asynchronously.
+
+
+        Returns a quote ID that can be used to check the status of the quote generation.'
+      operationId: schedule_quote_api_v1_booking_quote_schedule_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleQuoteResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/booking/quote/pull/{quote_id}:
+    get:
+      tags:
+      - booking
+      summary: Pull Quote Status
+      description: 'Get the status of an asynchronous quote generation task.
+
+
+        Returns the current status of the quote generation and, if completed successfully,
+
+        the quote details. If the task failed, returns the error message.
+
+
+        Possible status values:
+
+        - processing: The quote generation is still in progress
+
+        - success: The quote was successfully generated (includes quote details)
+
+        - failed: The quote generation failed (includes error message)'
+      operationId: pull_quote_status_api_v1_booking_quote_pull__quote_id__get
+      parameters:
+      - name: quote_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Quote Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PullQuoteResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/booking/fulfillment/{order_id}:
+    get:
+      tags:
+      - booking
+      summary: Get Fulfillment
+      description: 'Get fulfillment details by order ID.
+
+
+        Returns the fulfillment details including:
+
+        - Order information
+
+        - Customer details
+
+        - Passenger information
+
+        - Payment details
+
+        - Payment capture information'
+      operationId: get_fulfillment_api_v1_booking_fulfillment__order_id__get
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FulfillmentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/booking/fulfillment/schedule:
+    post:
+      tags:
+      - booking
+      summary: Schedule Fulfillment
+      description: 'Schedule a fulfillment task to run asynchronously.
+
+
+        The fulfillment process will be executed in the background:
+
+        1. Creates/retrieves customer
+
+        2. Creates new passengers and/or uses existing ones
+
+        3. Creates order and associates passengers with their types
+
+        4. Checks payment authorization
+
+        5. Updates slot availability
+
+        6. Captures payment
+
+        7. Confirms order
+
+
+        Returns a fulfillment ID that can be used to check the status of the fulfillment.'
+      operationId: schedule_fulfillment_api_v1_booking_fulfillment_schedule_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FulfillmentRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleFulfillmentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/booking/fulfillment/pull/{fulfillment_id}:
+    get:
+      tags:
+      - booking
+      summary: Pull Fulfillment Status
+      description: 'Get the status of an asynchronous fulfillment task.
+
+
+        Returns the current status of the fulfillment and, if completed successfully,
+
+        the booking details. If the task failed, returns the error message.
+
+
+        Possible status values:
+
+        - processing: The fulfillment is still in progress
+
+        - success: The booking was successfully created (includes booking details)
+
+        - failed: The fulfillment failed (includes error message)'
+      operationId: pull_fulfillment_status_api_v1_booking_fulfillment_pull__fulfillment_id__get
+      parameters:
+      - name: fulfillment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Fulfillment Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PullFulfillmentResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/payment/stripe/client-secret:
+    post:
+      tags:
+      - payment
+      summary: Get Stripe Client Secret
+      description: "Get the client_secret for a Stripe payment intent.\n\nArgs:\n\
+        \    request: The request containing the payment_intent_id\n    db: Database\
+        \ session\n\nReturns:\n    The client_secret of the payment intent\n\nRaises:\n\
+        \    HTTPException: If the payment intent is not found or there's an error\
+        \ with Stripe"
+      operationId: get_stripe_client_secret_api_v1_payment_stripe_client_secret_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetClientSecretRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientSecretResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/packages:
+    get:
+      tags:
+      - static-offers
+      summary: List Packages
+      description: List all packages.
+      operationId: list_packages_api_v1_static_offers_packages_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PackageRead'
+                type: array
+                title: Response List Packages Api V1 Static Offers Packages Get
+    post:
+      tags:
+      - static-offers
+      summary: Create Package
+      description: Create a new Package with the given details.
+      operationId: create_package_api_v1_static_offers_packages_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/packages/{package_id}:
+    get:
+      tags:
+      - static-offers
+      summary: Get Package By Id
+      description: Retrieve a Package by its ID with all related data.
+      operationId: get_package_by_id_api_v1_static_offers_packages__package_id__get
+      parameters:
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - static-offers
+      summary: Update Package
+      description: Partially update an existing Package.
+      operationId: update_package_api_v1_static_offers_packages__package_id__put
+      parameters:
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - static-offers
+      summary: Delete Package
+      description: Delete a Package by its ID.
+      operationId: delete_package_api_v1_static_offers_packages__package_id__delete
+      parameters:
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/packages/{package_id}/enable:
+    post:
+      tags:
+      - static-offers
+      summary: Enable Package
+      description: Enable a package.
+      operationId: enable_package_api_v1_static_offers_packages__package_id__enable_post
+      parameters:
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/packages/{package_id}/disable:
+    post:
+      tags:
+      - static-offers
+      summary: Disable Package
+      description: Disable a package.
+      operationId: disable_package_api_v1_static_offers_packages__package_id__disable_post
+      parameters:
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/packages/{package_id}/attributes:
+    post:
+      tags:
+      - static-offers
+      summary: Add Package Attribute
+      description: Add an attribute to a package.
+      operationId: add_package_attribute_api_v1_static_offers_packages__package_id__attributes_post
+      parameters:
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageAttributeCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageAttributeRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/packages/attributes/{attribute_id}:
+    delete:
+      tags:
+      - static-offers
+      summary: Remove Package Attribute
+      description: Remove an attribute from a package.
+      operationId: remove_package_attribute_api_v1_static_offers_packages_attributes__attribute_id__delete
+      parameters:
+      - name: attribute_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Attribute Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/packages/{package_id}/offers:
+    post:
+      tags:
+      - static-offers
+      summary: Create Static Offer
+      description: Create a new StaticOffer under the specified Package.
+      operationId: create_static_offer_api_v1_static_offers_packages__package_id__offers_post
+      parameters:
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaticOfferCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticOfferRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/offers/{offer_id}:
+    patch:
+      tags:
+      - static-offers
+      summary: Update Static Offer
+      description: Update an existing StaticOffer.
+      operationId: update_static_offer_api_v1_static_offers_offers__offer_id__patch
+      parameters:
+      - name: offer_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Offer Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaticOfferUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticOfferRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - static-offers
+      summary: Delete Static Offer
+      description: Delete a StaticOffer by its ID.
+      operationId: delete_static_offer_api_v1_static_offers_offers__offer_id__delete
+      parameters:
+      - name: offer_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Offer Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/offers/{offer_id}/enable:
+    post:
+      tags:
+      - static-offers
+      summary: Enable Static Offer
+      description: Enable a static offer.
+      operationId: enable_static_offer_api_v1_static_offers_offers__offer_id__enable_post
+      parameters:
+      - name: offer_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Offer Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticOfferRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/static-offers/offers/{offer_id}/disable:
+    post:
+      tags:
+      - static-offers
+      summary: Disable Static Offer
+      description: Disable a static offer.
+      operationId: disable_static_offer_api_v1_static_offers_offers__offer_id__disable_post
+      parameters:
+      - name: offer_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Offer Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticOfferRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/advisors:
+    post:
+      tags:
+      - advisors
+      summary: Create Advisor
+      description: 'Create a new advisor profile.
+
+
+        The auth_id is automatically extracted from the JWT token in the Authorization
+        header.
+
+        This ID is used to link the advisor profile to the authenticated user.
+
+
+        Authentication required: This endpoint requires a valid JWT token.'
+      operationId: create_advisor_api_v1_advisors_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvisorProfileCreate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorProfileRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid token
+      security:
+      - HTTPBearer: []
+  /api/v1/advisors/me:
+    get:
+      tags:
+      - advisors
+      summary: Get My Profile
+      description: 'Get the profile of the currently authenticated advisor.
+
+
+        The auth_id is automatically extracted from the JWT token in the Authorization
+        header.
+
+
+        Authentication required: This endpoint requires a valid JWT token.'
+      operationId: get_my_profile_api_v1_advisors_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorProfileRead'
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid token
+      security:
+      - HTTPBearer: []
+  /api/v1/advisors/{advisor_id}:
+    get:
+      tags:
+      - advisors
+      summary: Get Advisor
+      description: Get an advisor's profile by ID.
+      operationId: get_advisor_api_v1_advisors__advisor_id__get
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorProfileRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - advisors
+      summary: Update Advisor
+      description: 'Update an advisor''s profile.
+
+
+        Authentication required: This endpoint requires a valid JWT token.'
+      operationId: update_advisor_api_v1_advisors__advisor_id__patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvisorProfileUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorProfileRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid token
+    delete:
+      tags:
+      - advisors
+      summary: Delete Advisor
+      description: Mark an advisor's profile as deleted.
+      operationId: delete_advisor_api_v1_advisors__advisor_id__delete
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/advisors/{advisor_id}/block:
+    post:
+      tags:
+      - advisors
+      summary: Block Advisor
+      description: Block an advisor's profile.
+      operationId: block_advisor_api_v1_advisors__advisor_id__block_post
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorProfileRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/advisors/{advisor_id}/unblock:
+    post:
+      tags:
+      - advisors
+      summary: Unblock Advisor
+      description: Unblock an advisor's profile.
+      operationId: unblock_advisor_api_v1_advisors__advisor_id__unblock_post
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorProfileRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/advisors/{advisor_id}/packages:
+    get:
+      tags:
+      - advisors
+      summary: Get Advisor Packages
+      description: Get all packages associated with an advisor.
+      operationId: get_advisor_packages_api_v1_advisors__advisor_id__packages_get
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PackageRead'
+                title: Response Get Advisor Packages Api V1 Advisors  Advisor Id  Packages
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/advisors/{advisor_id}/packages/{package_id}:
+    post:
+      tags:
+      - advisors
+      summary: Associate Package To Advisor
+      description: 'Associate a package to an advisor.
+
+
+        Authentication required: This endpoint requires a valid JWT token.'
+      operationId: associate_package_to_advisor_api_v1_advisors__advisor_id__packages__package_id__post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorPackageAssociationRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid token
+    delete:
+      tags:
+      - advisors
+      summary: Remove Package From Advisor
+      description: 'Remove association of a package from an advisor.
+
+
+        Authentication required: This endpoint requires a valid JWT token.'
+      operationId: remove_package_from_advisor_api_v1_advisors__advisor_id__packages__package_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      - name: package_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Package Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid token
+  /api/v1/advisors/{advisor_id}/bookings:
+    get:
+      tags:
+      - advisors
+      summary: Get Advisor Bookings
+      description: 'Get all bookings associated with an advisor.
+
+
+        Authentication required: This endpoint requires a valid JWT token.'
+      operationId: get_advisor_bookings_api_v1_advisors__advisor_id__bookings_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: advisor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Advisor Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderRead'
+                title: Response Get Advisor Bookings Api V1 Advisors  Advisor Id  Bookings
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid token
+  /api/v1/auth-test/generate-token/{auth_id}:
+    get:
+      tags:
+      - auth-test
+      summary: Generate Test Token
+      description: "Generate a test JWT token for the given auth_id.\n\nThis endpoint\
+        \ is for testing purposes only and should be disabled in production.\n\nArgs:\n\
+        \    auth_id: The authentication ID to encode in the token\n\nReturns:\n \
+        \   A JWT token that can be used for testing"
+      operationId: generate_test_token_api_v1_auth_test_generate_token__auth_id__get
+      parameters:
+      - name: auth_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Auth Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth-test/verify-token:
+    get:
+      tags:
+      - auth-test
+      summary: Verify Token
+      description: "Verify that the JWT token is valid and return the auth_id.\n\n\
+        This endpoint is for testing purposes only.\n\nReturns:\n    The auth_id extracted\
+        \ from the JWT token\n\nAuthentication required: This endpoint requires a\
+        \ valid JWT token."
+      operationId: verify_token_api_v1_auth_test_verify_token_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTestResponse'
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid token
+      security:
+      - HTTPBearer: []
+  /api/v1/auth-test/verify-token-alt:
+    get:
+      tags:
+      - auth-test
+      summary: Verify Token Alt
+      description: "Alternative way to verify that the JWT token is valid using Depends.\n\
+        \nThis endpoint is for testing purposes only.\n\nReturns:\n    The auth_id\
+        \ extracted from the JWT token\n\nAuthentication required: This endpoint requires\
+        \ a valid JWT token."
+      operationId: verify_token_alt_api_v1_auth_test_verify_token_alt_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTestResponse'
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Invalid token
+      security:
+      - HTTPBearer: []
+  /api/v1/hotels/:
+    post:
+      tags:
+      - hotels
+      summary: Create Hotel
+      description: Create a new hotel.
+      operationId: create_hotel_api_v1_hotels__post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - hotels
+      summary: List Hotels
+      description: List hotels with pagination.
+      operationId: list_hotels_api_v1_hotels__get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: active_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Active Only
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HotelRead'
+                title: Response List Hotels Api V1 Hotels  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/search:
+    get:
+      tags:
+      - hotels
+      summary: Search Hotels
+      description: 'Search for hotels with spatial and tag filtering.
+
+
+        You can search by:
+
+        - Location (longitude/latitude) and radius
+
+        - Tags
+
+        - City, country, state
+
+        - Minimum ranking
+
+        - Provider and provider hotel ID'
+      operationId: search_hotels_api_v1_hotels_search_get
+      parameters:
+      - name: radius_km
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Radius Km
+      - name: city
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+      - name: country_code
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country Code
+      - name: state_code
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Code
+      - name: min_ranking
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Min Ranking
+      - name: provider
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/app__services__hotel__schemas__ProviderType'
+          - type: 'null'
+          title: Provider
+      - name: provider_hotel_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Provider Hotel Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Body_search_hotels_api_v1_hotels_search_get'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelSearchResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/availability:
+    post:
+      tags:
+      - hotels
+      summary: Check Hotel Availability
+      description: 'Check availability for hotels with rooms and rates.
+
+
+        You can search by:
+
+        - Location (longitude/latitude) and radius
+
+        - Tags
+
+        - City, country, state
+
+        - Minimum ranking
+
+        - Provider and provider hotel ID
+
+        - Check-in and check-out dates
+
+        - Guest information
+
+
+        This endpoint will:
+
+        1. Find hotels matching the search criteria
+
+        2. Check room and rate availability for the specified dates and guests
+
+        3. Retrieve additional hotel metadata
+
+        4. Return a combined result with all information'
+      operationId: check_hotel_availability_api_v1_hotels_availability_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelAvailabilityParams'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelAvailabilityResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/{hotel_id}:
+    get:
+      tags:
+      - hotels
+      summary: Get Hotel By Id
+      description: Get a hotel by its ID.
+      operationId: get_hotel_by_id_api_v1_hotels__hotel_id__get
+      parameters:
+      - name: hotel_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Hotel Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - hotels
+      summary: Update Hotel
+      description: Update an existing hotel.
+      operationId: update_hotel_api_v1_hotels__hotel_id__put
+      parameters:
+      - name: hotel_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Hotel Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - hotels
+      summary: Delete Hotel
+      description: Delete a hotel.
+      operationId: delete_hotel_api_v1_hotels__hotel_id__delete
+      parameters:
+      - name: hotel_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Hotel Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/provider/{provider}/{provider_hotel_id}:
+    get:
+      tags:
+      - hotels
+      summary: Get Hotel By Provider Id
+      description: Get a hotel by provider and provider hotel ID.
+      operationId: get_hotel_by_provider_id_api_v1_hotels_provider__provider___provider_hotel_id__get
+      parameters:
+      - name: provider
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/app__services__hotel__models__ProviderType'
+      - name: provider_hotel_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Provider Hotel Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/{hotel_id}/activate:
+    post:
+      tags:
+      - hotels
+      summary: Activate Hotel
+      description: Activate a hotel.
+      operationId: activate_hotel_api_v1_hotels__hotel_id__activate_post
+      parameters:
+      - name: hotel_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Hotel Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/{hotel_id}/deactivate:
+    post:
+      tags:
+      - hotels
+      summary: Deactivate Hotel
+      description: Deactivate a hotel.
+      operationId: deactivate_hotel_api_v1_hotels__hotel_id__deactivate_post
+      parameters:
+      - name: hotel_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Hotel Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/{hotel_id}/provider-mappings:
+    post:
+      tags:
+      - hotels
+      summary: Create Provider Mapping
+      description: Create a new provider mapping for a hotel.
+      operationId: create_provider_mapping_api_v1_hotels__hotel_id__provider_mappings_post
+      parameters:
+      - name: hotel_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Hotel Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelProviderMappingCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelProviderMappingRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/provider-mappings/{mapping_id}:
+    delete:
+      tags:
+      - hotels
+      summary: Delete Provider Mapping
+      description: Delete a provider mapping.
+      operationId: delete_provider_mapping_api_v1_hotels_provider_mappings__mapping_id__delete
+      parameters:
+      - name: mapping_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Mapping Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /:
+    get:
+      summary: Root
+      description: Root endpoint with API information.
+      operationId: root__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /health:
+    get:
+      summary: Health Check
+      description: Health check endpoint.
+      operationId: health_check_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    AdvisorPackageAssociationRead:
+      properties:
+        package_id:
+          type: string
+          format: uuid
+          title: Package Id
+          description: ID of the package
+        advisor_id:
+          type: string
+          format: uuid
+          title: Advisor Id
+          description: ID of the advisor
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for the association
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - package_id
+      - advisor_id
+      - id
+      - created_at
+      title: AdvisorPackageAssociationRead
+      description: Schema for reading an advisor-package association.
+    AdvisorProfileCreate:
+      properties:
+        email:
+          type: string
+          title: Email
+          description: Advisor's email address
+        first_name:
+          type: string
+          title: First Name
+          description: Advisor's first name
+        last_name:
+          type: string
+          title: Last Name
+          description: Advisor's last name
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+          description: URL of advisor's profile picture
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Short bio or description
+        instagram_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instagram Url
+          description: Instagram profile URL
+        tiktok_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tiktok Url
+          description: TikTok profile URL
+        calendly_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Calendly Url
+          description: Calendly scheduling link
+        badge_level:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Badge Level
+          description: Advisor's badge level
+        stripe_account_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stripe Account Id
+          description: Stripe account ID
+      type: object
+      required:
+      - email
+      - first_name
+      - last_name
+      title: AdvisorProfileCreate
+      description: Schema for creating a new advisor profile.
+    AdvisorProfileRead:
+      properties:
+        email:
+          type: string
+          title: Email
+          description: Advisor's email address
+        first_name:
+          type: string
+          title: First Name
+          description: Advisor's first name
+        last_name:
+          type: string
+          title: Last Name
+          description: Advisor's last name
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+          description: URL of advisor's profile picture
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Short bio or description
+        instagram_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instagram Url
+          description: Instagram profile URL
+        tiktok_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tiktok Url
+          description: TikTok profile URL
+        calendly_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Calendly Url
+          description: Calendly scheduling link
+        badge_level:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Badge Level
+          description: Advisor's badge level
+        stripe_account_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stripe Account Id
+          description: Stripe account ID
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for the advisor
+        auth_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Auth Id
+          description: Authentication ID from the third-party authentication system
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        status:
+          type: string
+          title: Status
+          description: Current status of the advisor profile
+      type: object
+      required:
+      - email
+      - first_name
+      - last_name
+      - id
+      - auth_id
+      - created_at
+      - updated_at
+      - status
+      title: AdvisorProfileRead
+      description: Schema for reading an advisor profile.
+    AdvisorProfileUpdate:
+      properties:
+        email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Email
+        first_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Name
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        instagram_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instagram Url
+        tiktok_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tiktok Url
+        calendly_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Calendly Url
+        badge_level:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Badge Level
+        stripe_account_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stripe Account Id
+      type: object
+      title: AdvisorProfileUpdate
+      description: Schema for updating an existing advisor profile.
+    Amenity:
+      properties:
+        code:
+          type: string
+          title: Code
+          description: Amenity code
+        name:
+          type: string
+          title: Name
+          description: Name of the amenity
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Description of the amenity
+        amount:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Output'
+          - type: 'null'
+          description: Amount for the amenity
+      type: object
+      required:
+      - code
+      - name
+      title: Amenity
+      description: Hotel amenity information.
+    Amount-Input:
+      properties:
+        value:
+          anyOf:
+          - type: number
+          - type: string
+          title: Value
+        currency:
+          type: string
+          title: Currency
+      type: object
+      required:
+      - value
+      - currency
+      title: Amount
+    Amount-Output:
+      properties:
+        value:
+          type: string
+          title: Value
+        currency:
+          type: string
+          title: Currency
+      type: object
+      required:
+      - value
+      - currency
+      title: Amount
+    AuthTestResponse:
+      properties:
+        auth_id:
+          type: string
+          title: Auth Id
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - auth_id
+      - message
+      title: AuthTestResponse
+      description: Response model for auth test endpoint.
+    BedInfo:
+      properties:
+        type:
+          type: string
+          title: Type
+          description: Type of bed
+        count:
+          type: integer
+          title: Count
+          description: Number of beds of this type
+          default: 1
+      type: object
+      required:
+      - type
+      title: BedInfo
+      description: Bed information.
+    Body_search_hotels_api_v1_hotels_search_get:
+      properties:
+        location:
+          anyOf:
+          - $ref: '#/components/schemas/GeoPoint'
+          - type: 'null'
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tags
+      type: object
+      title: Body_search_hotels_api_v1_hotels_search_get
+    ClientSecretResponse:
+      properties:
+        client_secret:
+          type: string
+          title: Client Secret
+      type: object
+      required:
+      - client_secret
+      title: ClientSecretResponse
+    CustomerCreate:
+      properties:
+        first_name:
+          type: string
+          title: First Name
+          description: Customer's first name
+        last_name:
+          type: string
+          title: Last Name
+          description: Customer's last name
+        email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Email
+          description: Customer's email address
+        phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone
+          description: Customer's phone number
+      type: object
+      required:
+      - first_name
+      - last_name
+      title: CustomerCreate
+      description: Schema for creating a new Customer.
+    CustomerRead:
+      properties:
+        first_name:
+          type: string
+          title: First Name
+          description: Customer's first name
+        last_name:
+          type: string
+          title: Last Name
+          description: Customer's last name
+        email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Email
+          description: Customer's email address
+        phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone
+          description: Customer's phone number
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for the customer
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - first_name
+      - last_name
+      - id
+      - created_at
+      title: CustomerRead
+      description: Schema for reading a Customer.
+    CustomerUpdate:
+      properties:
+        first_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Name
+        email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Email
+        phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone
+      type: object
+      title: CustomerUpdate
+      description: Schema for updating an existing Customer.
+    DestinationTypeEnum:
+      type: string
+      enum:
+      - IATA_CODE
+      - FREE_TEXT
+      - COUNTRY_CODE
+      title: DestinationTypeEnum
+    FulfillmentRequest:
+      properties:
+        quote_id:
+          type: string
+          title: Quote Id
+          description: ID of quoted offer
+        payment_authorization_id:
+          type: string
+          format: uuid
+          title: Payment Authorization Id
+          description: ID of the payment authorization from the quote response
+        customer:
+          $ref: '#/components/schemas/CustomerCreate'
+          description: Customer contact information
+        new_passengers:
+          items:
+            $ref: '#/components/schemas/PassengerBase'
+          type: array
+          title: New Passengers
+          description: List of new passengers to create
+        existing_passengers:
+          items:
+            $ref: '#/components/schemas/OrderPassengerInfo'
+          type: array
+          title: Existing Passengers
+          description: List of existing passengers to add to the order
+      type: object
+      required:
+      - quote_id
+      - payment_authorization_id
+      - customer
+      title: FulfillmentRequest
+      description: 'Schema for fulfillment request containing customer, passenger
+        details,
+
+        and payment authorization.'
+    FulfillmentResponse:
+      properties:
+        product_fulfillments:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/StaticOfferFulfillment'
+            - $ref: '#/components/schemas/HotelFulfillment'
+            discriminator:
+              propertyName: product_type
+              mapping:
+                HotelProduct: '#/components/schemas/HotelFulfillment'
+                StaticOfferProduct: '#/components/schemas/StaticOfferFulfillment'
+          type: array
+          minItems: 1
+          title: Product Fulfillments
+          description: List of product fulfillments, which could be static offer or
+            hotel product
+        payment_capture:
+          $ref: '#/components/schemas/PaymentCaptureRead'
+      type: object
+      required:
+      - product_fulfillments
+      - payment_capture
+      title: FulfillmentResponse
+      description: Schema for fulfillment response including order and payment capture.
+    GeoPoint:
+      properties:
+        longitude:
+          type: number
+          title: Longitude
+          description: Longitude coordinate
+        latitude:
+          type: number
+          title: Latitude
+          description: Latitude coordinate
+      type: object
+      required:
+      - longitude
+      - latitude
+      title: GeoPoint
+      description: Represents a geographical point with longitude and latitude.
+    GetClientSecretRequest:
+      properties:
+        payment_intent_id:
+          type: string
+          title: Payment Intent Id
+      type: object
+      required:
+      - payment_intent_id
+      title: GetClientSecretRequest
+    GuestInfo:
+      properties:
+        adults:
+          type: integer
+          minimum: 1.0
+          title: Adults
+          description: Number of adults
+        children:
+          anyOf:
+          - items:
+              type: integer
+            type: array
+          - type: 'null'
+          title: Children
+          description: Ages of children
+        infants:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Infants
+          description: Number of infants
+          default: 0
+      type: object
+      required:
+      - adults
+      title: GuestInfo
+      description: Guest information for a room.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HotelAvailability:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: Unique hotel ID
+        name:
+          type: string
+          title: Name
+          description: Hotel name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Hotel description
+        address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Address
+          description: Hotel address
+        min_price:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Output'
+          - type: 'null'
+          description: Minimum price across all rooms/rates
+        max_price:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Output'
+          - type: 'null'
+          description: Maximum price across all rooms/rates
+        star_rating:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Star Rating
+          description: Star rating of the hotel
+        rating:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Rating
+          description: Average rating of the hotel
+        main_photo:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Main Photo
+          description: URL of the hotel's main photo
+        amenities:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Amenity'
+            type: array
+          - type: 'null'
+          title: Amenities
+          description: List of hotel amenities
+        policies:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Policy'
+            type: array
+          - type: 'null'
+          title: Policies
+          description: Hotel policy (e.g., cancellation policy)
+        images:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/HotelImage'
+            type: array
+          - type: 'null'
+          title: Images
+          description: Hotel images
+        rooms:
+          items:
+            $ref: '#/components/schemas/RoomInfo'
+          type: array
+          title: Rooms
+          description: Available rooms with rates
+      type: object
+      required:
+      - id
+      - name
+      - rooms
+      title: HotelAvailability
+      description: Hotel availability information including rooms and rates.
+    HotelAvailabilityParams:
+      properties:
+        location:
+          anyOf:
+          - $ref: '#/components/schemas/GeoPoint'
+          - type: 'null'
+          description: Center point for proximity search
+        radius_km:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Radius Km
+          description: Search radius in kilometers
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tags
+          description: Tags to filter by
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+          description: City to filter by
+        country_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country Code
+          description: Country code to filter by
+        state_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Code
+          description: State code to filter by
+        min_ranking:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Min Ranking
+          description: Minimum ranking
+        provider:
+          anyOf:
+          - $ref: '#/components/schemas/app__services__hotel__schemas__ProviderType'
+          - type: 'null'
+          description: Filter by provider
+        provider_hotel_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Provider Hotel Id
+          description: Filter by provider hotel ID
+        facility_ids:
+          anyOf:
+          - items:
+              type: integer
+            type: array
+          - type: 'null'
+          title: Facility Ids
+          description: List of facility IDs to filter hotels by
+        check_in_date:
+          type: string
+          format: date
+          title: Check In Date
+          description: Check-in date
+        check_out_date:
+          type: string
+          format: date
+          title: Check Out Date
+          description: Check-out date
+        guests:
+          items:
+            $ref: '#/components/schemas/GuestInfo'
+          type: array
+          title: Guests
+          description: Guest information for each room
+        provider_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Provider Ids
+          description: Provider IDs to check availability with
+        limit:
+          type: integer
+          title: Limit
+          description: Maximum number of results
+          default: 100
+        offset:
+          type: integer
+          title: Offset
+          description: Offset for pagination
+          default: 0
+      type: object
+      required:
+      - check_in_date
+      - check_out_date
+      - guests
+      title: HotelAvailabilityParams
+      description: Parameters for hotel availability check.
+    HotelAvailabilityResult:
+      properties:
+        hotels:
+          items:
+            $ref: '#/components/schemas/HotelAvailability'
+          type: array
+          title: Hotels
+          description: List of hotels with availability
+        total:
+          type: integer
+          title: Total
+          description: Total number of matching hotels
+        limit:
+          type: integer
+          title: Limit
+          description: Maximum number of results per page
+        offset:
+          type: integer
+          title: Offset
+          description: Current offset
+      type: object
+      required:
+      - hotels
+      - total
+      - limit
+      - offset
+      title: HotelAvailabilityResult
+      description: Result of a hotel availability check.
+    HotelCreate:
+      properties:
+        name:
+          type: string
+          title: Name
+          description: Hotel name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Hotel description
+        address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Address
+          description: Hotel address
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+          description: City where hotel is located
+        postal_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Postal Code
+          description: Postal code
+        country_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country Code
+          description: ISO country code (2 letters)
+        state_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Code
+          description: State/province code
+        location:
+          $ref: '#/components/schemas/GeoPoint'
+          description: Geographical coordinates
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+          description: List of tags for the hotel
+        ranking:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Ranking
+          description: Hotel ranking/rating
+        status:
+          $ref: '#/components/schemas/HotelStatus'
+          description: Hotel status
+          default: active
+        provider_mappings:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/HotelProviderMappingCreate'
+            type: array
+          - type: 'null'
+          title: Provider Mappings
+          description: Provider mappings for this hotel
+      type: object
+      required:
+      - name
+      - location
+      title: HotelCreate
+      description: Schema for creating a new hotel.
+    HotelFulfillment:
+      properties:
+        product_type:
+          type: string
+          const: HotelProduct
+          title: Product Type
+          description: Hotel product discriminator.
+          default: HotelProduct
+        booking_id:
+          type: string
+          title: Booking Id
+          description: Booking ID from the provider
+        booking_reference:
+          type: string
+          title: Booking Reference
+          description: Booking reference from the provider
+        hotel_id:
+          type: integer
+          title: Hotel Id
+          description: Unique hotel ID
+        hotel_name:
+          type: string
+          title: Hotel Name
+          description: Hotel name
+        hotel_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hotel Description
+          description: Hotel description
+        hotel_address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hotel Address
+          description: Hotel address
+        hotel_image:
+          anyOf:
+          - $ref: '#/components/schemas/HotelImage'
+          - type: 'null'
+          description: Hotel image information
+        customer:
+          $ref: '#/components/schemas/CustomerRead'
+          description: Customer information
+        passenger_counts:
+          items:
+            $ref: '#/components/schemas/PassengerTypeCount'
+          type: array
+          title: Passenger Counts
+          description: List of passenger type counts for this QuotedOffer.
+        check_in_date:
+          type: string
+          format: date
+          title: Check In Date
+          description: Check-in date
+        check_out_date:
+          type: string
+          format: date
+          title: Check Out Date
+          description: Check-out date
+        rate_info:
+          $ref: '#/components/schemas/RateInfo'
+          description: Rate information for the hotel product
+        opaque_rate_data:
+          type: string
+          title: Opaque Rate Data
+          description: Opaque rate data as a JSON string
+      type: object
+      required:
+      - booking_id
+      - booking_reference
+      - hotel_id
+      - hotel_name
+      - customer
+      - check_in_date
+      - check_out_date
+      - rate_info
+      - opaque_rate_data
+      title: HotelFulfillment
+    HotelImage:
+      properties:
+        type:
+          type: string
+          title: Type
+          description: Type of image (e.g., GEN, ROO, EXT)
+        path:
+          type: string
+          title: Path
+          description: URL path to the image
+        order:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Order
+          description: Display order of the image
+      type: object
+      required:
+      - type
+      - path
+      title: HotelImage
+      description: Hotel image information.
+    HotelProduct:
+      properties:
+        product_type:
+          type: string
+          const: HotelProduct
+          title: Product Type
+          description: Hotel product discriminator.
+          default: HotelProduct
+        provider_id:
+          type: string
+          title: Provider Id
+          description: ID of the provider
+        hotel_id:
+          type: string
+          title: Hotel Id
+          description: ID of the hotel to quote
+        check_in_date:
+          type: string
+          format: date
+          title: Check In Date
+          description: Check-in date
+        check_out_date:
+          type: string
+          format: date
+          title: Check Out Date
+          description: Check-out date
+        opaque_rate_data:
+          type: string
+          title: Opaque Rate Data
+          description: Opaque rate data from availability response as a JSON string
+      type: object
+      required:
+      - provider_id
+      - hotel_id
+      - check_in_date
+      - check_out_date
+      - opaque_rate_data
+      title: HotelProduct
+      description: Schema for hotel product information in a quote request.
+    HotelProviderMappingCreate:
+      properties:
+        provider:
+          $ref: '#/components/schemas/app__services__hotel__schemas__ProviderType'
+          description: Provider type
+        provider_hotel_id:
+          type: string
+          title: Provider Hotel Id
+          description: Hotel ID in the provider's system
+      type: object
+      required:
+      - provider
+      - provider_hotel_id
+      title: HotelProviderMappingCreate
+      description: Schema for creating a hotel provider mapping.
+    HotelProviderMappingRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: Mapping ID
+        hotel_id:
+          type: integer
+          title: Hotel Id
+          description: Hotel ID
+        provider:
+          $ref: '#/components/schemas/ProviderType-Output'
+          description: Provider type
+        provider_hotel_id:
+          type: string
+          title: Provider Hotel Id
+          description: Hotel ID in the provider's system
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Creation timestamp
+      type: object
+      required:
+      - id
+      - hotel_id
+      - provider
+      - provider_hotel_id
+      - created_at
+      title: HotelProviderMappingRead
+      description: Schema for reading a hotel provider mapping.
+    HotelRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: Unique hotel ID
+        name:
+          type: string
+          title: Name
+          description: Hotel name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Hotel description
+        address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Address
+          description: Hotel address
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+          description: City where hotel is located
+        postal_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Postal Code
+          description: Postal code
+        country_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country Code
+          description: ISO country code (2 letters)
+        state_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Code
+          description: State/province code
+        location:
+          $ref: '#/components/schemas/GeoPoint'
+          description: Geographical coordinates
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+          description: List of tags for the hotel
+        ranking:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Ranking
+          description: Hotel ranking/rating
+        status:
+          $ref: '#/components/schemas/HotelStatus'
+          description: Hotel status
+        last_update:
+          type: string
+          format: date-time
+          title: Last Update
+          description: Last update timestamp
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Creation timestamp
+        provider_mappings:
+          items:
+            $ref: '#/components/schemas/HotelProviderMappingRead'
+          type: array
+          title: Provider Mappings
+          description: Provider mappings for this hotel
+      type: object
+      required:
+      - id
+      - name
+      - location
+      - status
+      - last_update
+      - created_at
+      title: HotelRead
+      description: Schema for reading hotel data.
+    HotelSearchResult:
+      properties:
+        hotels:
+          items:
+            $ref: '#/components/schemas/HotelRead'
+          type: array
+          title: Hotels
+          description: List of hotels matching the search criteria
+        total:
+          type: integer
+          title: Total
+          description: Total number of matching hotels
+        limit:
+          type: integer
+          title: Limit
+          description: Maximum number of results per page
+        offset:
+          type: integer
+          title: Offset
+          description: Current offset
+      type: object
+      required:
+      - hotels
+      - total
+      - limit
+      - offset
+      title: HotelSearchResult
+      description: Result of a hotel search.
+    HotelStatus:
+      type: string
+      enum:
+      - active
+      - inactive
+      title: HotelStatus
+    HotelUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Hotel name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Hotel description
+        address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Address
+          description: Hotel address
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+          description: City where hotel is located
+        postal_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Postal Code
+          description: Postal code
+        country_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country Code
+          description: ISO country code (2 letters)
+        state_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Code
+          description: State/province code
+        location:
+          anyOf:
+          - $ref: '#/components/schemas/GeoPoint'
+          - type: 'null'
+          description: Geographical coordinates
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tags
+          description: List of tags for the hotel
+        ranking:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Ranking
+          description: Hotel ranking/rating
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/HotelStatus'
+          - type: 'null'
+          description: Hotel status
+      type: object
+      title: HotelUpdate
+      description: Schema for updating an existing hotel.
+    Itinerary:
+      properties:
+        days:
+          items:
+            $ref: '#/components/schemas/ItineraryDay'
+          type: array
+          title: Days
+      type: object
+      required:
+      - days
+      title: Itinerary
+      description: Represents the full itinerary
+    ItineraryDay:
+      properties:
+        title:
+          type: string
+          title: Title
+        location:
+          type: string
+          title: Location
+        dayNumber:
+          type: integer
+          title: Daynumber
+        activities:
+          items:
+            type: string
+          type: array
+          title: Activities
+      type: object
+      required:
+      - title
+      - location
+      - dayNumber
+      - activities
+      title: ItineraryDay
+      description: Represents a single day in the itinerary
+    OrderPassengerInfo:
+      properties:
+        passenger_id:
+          type: string
+          format: uuid
+          title: Passenger Id
+          description: ID of an existing passenger
+        passenger_type:
+          $ref: '#/components/schemas/PassengerType'
+          description: Type of passenger for this order
+      type: object
+      required:
+      - passenger_id
+      - passenger_type
+      title: OrderPassengerInfo
+      description: Schema for associating a passenger with an order.
+    OrderPassengerRead:
+      properties:
+        passenger:
+          $ref: '#/components/schemas/PassengerRead'
+        passenger_type:
+          $ref: '#/components/schemas/PassengerType'
+      type: object
+      required:
+      - passenger
+      - passenger_type
+      title: OrderPassengerRead
+      description: Schema for reading passenger information in an order context.
+    OrderPaymentRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique ID for the OrderPayment.
+        payment_authorization_id:
+          type: string
+          format: uuid
+          title: Payment Authorization Id
+          description: ID of the payment authorization.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Timestamp when the payment was created.
+      type: object
+      required:
+      - id
+      - payment_authorization_id
+      - created_at
+      title: OrderPaymentRead
+      description: Schema for reading payment information in an order context.
+    OrderRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique ID for the Order.
+        quoted_offer_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Quoted Offer Id
+          description: ID of the quoted offer if still referencing
+        customer_id:
+          type: string
+          format: uuid
+          title: Customer Id
+          description: ID of the customer.
+        advisor_id:
+          type: string
+          format: uuid
+          title: Advisor Id
+        final_price:
+          $ref: '#/components/schemas/Amount-Output'
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Timestamp when the Order was created.
+        customer:
+          $ref: '#/components/schemas/CustomerRead'
+          description: Customer information
+        passengers:
+          items:
+            $ref: '#/components/schemas/OrderPassengerRead'
+          type: array
+          title: Passengers
+          description: List of passengers in this order with their types
+        payments:
+          items:
+            $ref: '#/components/schemas/OrderPaymentRead'
+          type: array
+          title: Payments
+          description: List of payment references for this Order.
+      type: object
+      required:
+      - id
+      - customer_id
+      - advisor_id
+      - final_price
+      - status
+      - created_at
+      - customer
+      title: OrderRead
+      description: Schema for reading an Order.
+    OrderStatus:
+      type: string
+      enum:
+      - pending
+      - confirmed
+      - cancelled
+      title: OrderStatus
+    PackageAttributeCreate:
+      properties:
+        attribute_name:
+          $ref: '#/components/schemas/PackageAttributeEnum'
+          description: Attribute name (e.g. 'image_url').
+        attribute_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Attribute Value
+          description: Value for this attribute.
+      type: object
+      required:
+      - attribute_name
+      title: PackageAttributeCreate
+      description: For creating a new PackageAttribute.
+    PackageAttributeEnum:
+      type: string
+      enum:
+      - hero_image
+      - carousel_image
+      title: PackageAttributeEnum
+    PackageAttributeRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique ID of this attribute.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: When this attribute was created.
+        attribute_name:
+          $ref: '#/components/schemas/PackageAttributeEnum'
+          description: Attribute name (e.g. 'image_url').
+        attribute_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Attribute Value
+          description: Value for this attribute.
+      type: object
+      required:
+      - id
+      - created_at
+      - attribute_name
+      title: PackageAttributeRead
+      description: For reading a PackageAttribute record.
+    PackageCreate:
+      properties:
+        type:
+          $ref: '#/components/schemas/PackageTypeEnum'
+          description: Package type (GROUP, INDIVIDUAL, etc.).
+        status:
+          $ref: '#/components/schemas/PackageStatus'
+          description: Status of the package.
+          default: enabled
+        destination_type:
+          $ref: '#/components/schemas/DestinationTypeEnum'
+          description: Type of destination (IATA, free text, country code).
+        destination:
+          type: string
+          title: Destination
+          description: Name or code of the destination.
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Description of the package.
+        data:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Data
+          description: Additional JSON data for this package.
+      type: object
+      required:
+      - type
+      - destination_type
+      - destination
+      title: PackageCreate
+      description: For creating a new Package.
+    PackageOffer:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        departure_date:
+          type: string
+          format: date
+          title: Departure Date
+        return_date:
+          type: string
+          format: date
+          title: Return Date
+        duration_days:
+          type: integer
+          title: Duration Days
+        price:
+          $ref: '#/components/schemas/Amount-Output'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        max_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Capacity
+        slots_remaining:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Slots Remaining
+        allow_children:
+          type: boolean
+          title: Allow Children
+          default: true
+        allow_infants:
+          type: boolean
+          title: Allow Infants
+          default: false
+      type: object
+      required:
+      - id
+      - departure_date
+      - return_date
+      - duration_days
+      - price
+      - created_at
+      - max_capacity
+      - slots_remaining
+      title: PackageOffer
+      description: Represents a single offer for a package
+    PackageRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique ID of the package.
+        type:
+          $ref: '#/components/schemas/PackageTypeEnum'
+          description: Package type (GROUP, INDIVIDUAL, etc.).
+        status:
+          $ref: '#/components/schemas/PackageStatus'
+          description: Status of the package.
+          default: enabled
+        destination_type:
+          $ref: '#/components/schemas/DestinationTypeEnum'
+          description: Type of destination (IATA, free text, country code).
+        destination:
+          type: string
+          title: Destination
+          description: Name or code of the destination.
+        min_duration:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Min Duration
+          description: Minimum duration in days
+        max_duration:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Duration
+          description: Minimum duration in days
+        min_price:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Output'
+          - type: 'null'
+          description: Minimum price across all offers
+        hero_image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hero Image
+          description: Main image URL for the package
+        carousel_images:
+          items:
+            type: string
+          type: array
+          title: Carousel Images
+          description: Main image URL for the package
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Package description
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: When the package was created
+        itinerary:
+          anyOf:
+          - $ref: '#/components/schemas/Itinerary'
+          - type: 'null'
+          description: Full itinerary details
+        offers:
+          items:
+            $ref: '#/components/schemas/PackageOffer'
+          type: array
+          title: Offers
+          description: List of available offers
+      type: object
+      required:
+      - id
+      - type
+      - destination_type
+      - destination
+      - created_at
+      title: PackageRead
+      description: For reading a Package, including related records.
+    PackageStatus:
+      type: string
+      enum:
+      - enabled
+      - disabled
+      title: PackageStatus
+    PackageTypeEnum:
+      type: string
+      enum:
+      - PARTNER_AGENCY_GROUP
+      - PARTNER_AGENCY_INDIVIDUAL
+      title: PackageTypeEnum
+    PackageUpdate:
+      properties:
+        type:
+          anyOf:
+          - $ref: '#/components/schemas/PackageTypeEnum'
+          - type: 'null'
+          description: Package type (GROUP, INDIVIDUAL, etc.)
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/PackageStatus'
+          - type: 'null'
+          description: Status of the package
+        destination_type:
+          anyOf:
+          - $ref: '#/components/schemas/DestinationTypeEnum'
+          - type: 'null'
+          description: Type of destination
+        destination:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Destination
+          description: Name or code of the destination
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Description of the package
+        data:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Data
+          description: Additional JSON data
+        hero_image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hero Image
+          description: Main image URL for the package
+        carousel_images:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Carousel Images
+          description: List of carousel image URLs
+      type: object
+      title: PackageUpdate
+      description: 'For partially updating an existing Package.
+
+        All fields are optional for PATCH-like behavior.'
+    PassengerBase:
+      properties:
+        first_name:
+          type: string
+          title: First Name
+          description: Passenger's first name
+        last_name:
+          type: string
+          title: Last Name
+          description: Passenger's last name
+        birth_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Birth Date
+          description: Passenger's birth date
+        passport_number:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Passport Number
+          description: Passenger's passport number
+        nationality:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Nationality
+          description: Passenger's nationality
+        passport_expiry:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Passport Expiry
+          description: Passport expiry date
+      type: object
+      required:
+      - first_name
+      - last_name
+      title: PassengerBase
+      description: Base schema for passenger information.
+    PassengerRead:
+      properties:
+        first_name:
+          type: string
+          title: First Name
+          description: Passenger's first name
+        last_name:
+          type: string
+          title: Last Name
+          description: Passenger's last name
+        birth_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Birth Date
+          description: Passenger's birth date
+        passport_number:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Passport Number
+          description: Passenger's passport number
+        nationality:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Nationality
+          description: Passenger's nationality
+        passport_expiry:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Passport Expiry
+          description: Passport expiry date
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for the passenger
+        customer_id:
+          type: string
+          format: uuid
+          title: Customer Id
+          description: ID of the customer this passenger belongs to
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - first_name
+      - last_name
+      - id
+      - customer_id
+      - created_at
+      title: PassengerRead
+      description: Schema for reading passenger information.
+    PassengerType:
+      type: string
+      enum:
+      - infant
+      - child
+      - youth
+      - adult
+      title: PassengerType
+    PassengerTypeCount:
+      properties:
+        passenger_type:
+          $ref: '#/components/schemas/PassengerType'
+          description: Type of passenger
+        count:
+          type: integer
+          minimum: 0.0
+          title: Count
+          description: Number of passengers of this type
+      type: object
+      required:
+      - passenger_type
+      - count
+      title: PassengerTypeCount
+      description: Schema for passenger type count in quote request.
+    PaymentAuthorizationRead:
+      properties:
+        authorized_amount:
+          $ref: '#/components/schemas/Amount-Output'
+          description: The total amount authorized.
+        external_auth_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Auth Id
+          description: External authorization ID from the payment provider.
+        quoted_offer_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Quoted Offer Id
+          description: ID of the quoted offer this payment is for.
+        hotel_quote_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hotel Quote Id
+          description: ID of the hotel quote this payment is for.
+        payment_provider:
+          $ref: '#/components/schemas/PaymentProvider'
+          description: Payment provider, e.g. 'stripe'.
+          default: stripe
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique ID of this authorization.
+        status:
+          $ref: '#/components/schemas/PaymentAuthorizationStatus'
+          description: Current status of this authorization.
+          default: initiated
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Timestamp when this authorization was created.
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp when this authorization was last updated.
+        captures:
+          items:
+            $ref: '#/components/schemas/PaymentCaptureRead'
+          type: array
+          title: Captures
+          description: List of captures made against this authorization.
+      type: object
+      required:
+      - authorized_amount
+      - id
+      - created_at
+      - updated_at
+      title: PaymentAuthorizationRead
+      description: 'Schema for reading a PaymentAuthorization, including server-managed
+        fields
+
+        and relationships (e.g., PaymentCapture records).'
+    PaymentAuthorizationStatus:
+      type: string
+      enum:
+      - initiated
+      - authorized
+      - failed
+      - canceled
+      - expired
+      title: PaymentAuthorizationStatus
+      description: 'Possible statuses for the authorization flow:
+
+        - initiated: Payment creation or authorization started
+
+        - authorized: Funds are on hold / authorization succeeded
+
+        - failed: Authorization failed
+
+        - canceled: Authorization was canceled (by user or system)
+
+        - expired: Authorization expired before use'
+    PaymentCaptureRead:
+      properties:
+        authorization_id:
+          type: string
+          format: uuid
+          title: Authorization Id
+          description: ID of the PaymentAuthorization this capture belongs to.
+        captured_amount:
+          $ref: '#/components/schemas/Amount-Output'
+          description: The amount captured in this event.
+        external_capture_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Capture Id
+          description: External capture ID from the payment provider.
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique ID of this capture.
+        status:
+          $ref: '#/components/schemas/PaymentCaptureStatus'
+          description: Current status of this capture event.
+          default: initiated
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Timestamp when this capture was created.
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp when this capture was last updated.
+      type: object
+      required:
+      - authorization_id
+      - captured_amount
+      - id
+      - created_at
+      - updated_at
+      title: PaymentCaptureRead
+      description: Schema for reading a PaymentCapture, including server-managed fields.
+    PaymentCaptureStatus:
+      type: string
+      enum:
+      - initiated
+      - success
+      - partial
+      - failed
+      - refunded
+      title: PaymentCaptureStatus
+      description: 'Possible statuses for the capture flow:
+
+        - initiated: Capture request created but not completed
+
+        - success: Capture succeeded in full
+
+        - partial: Capture partially succeeded (if partial captures are allowed)
+
+        - failed: Capture failed
+
+        - refunded: Capture was successful but later refunded'
+    PaymentProvider:
+      type: string
+      enum:
+      - stripe
+      title: PaymentProvider
+      description: 'Possible provider for payment processing:
+
+        - stripe: Stripe payment provider.'
+    Policy:
+      properties:
+        type:
+          type: string
+          title: Type
+          description: Policy code
+        name:
+          type: string
+          title: Name
+          description: Name of the policy
+        description:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Description
+          description: Description of the policy
+      type: object
+      required:
+      - type
+      - name
+      title: Policy
+      description: Hotel policy information.
+    ProcessingStatus:
+      type: string
+      enum:
+      - processing
+      - success
+      - failed
+      title: ProcessingStatus
+      description: Enum for processing status values.
+    ProviderType-Output:
+      type: string
+      enum:
+      - internal
+      - expedia
+      - booking
+      - amadeus
+      - sabre
+      - custom
+      title: ProviderType
+    PullFulfillmentResponse:
+      properties:
+        status:
+          $ref: '#/components/schemas/ProcessingStatus'
+          description: Current status of the fulfillment process
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+          description: Error message if the fulfillment failed
+        fulfillment:
+          anyOf:
+          - $ref: '#/components/schemas/FulfillmentResponse'
+          - type: 'null'
+          description: Fulfillment details if the fulfillment was successful
+      type: object
+      required:
+      - status
+      title: PullFulfillmentResponse
+      description: 'Response model for fulfillment status and result.
+
+
+        Contains the processing status and the fulfillment details if processing is
+        complete.'
+    PullQuoteResponse:
+      properties:
+        status:
+          $ref: '#/components/schemas/ProcessingStatus'
+          description: Current status of the quote generation process
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+          description: Error message if the quote generation failed
+        quote:
+          anyOf:
+          - $ref: '#/components/schemas/QuoteResponse'
+          - type: 'null'
+          description: Quote details if the quote generation was successful
+      type: object
+      required:
+      - status
+      title: PullQuoteResponse
+      description: 'Response model for quote status and result.
+
+
+        Contains the processing status and the quote details if processing is complete.'
+    QuoteRequest:
+      properties:
+        products:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/HotelProduct'
+            - $ref: '#/components/schemas/StaticOfferProduct'
+            discriminator:
+              propertyName: product_type
+              mapping:
+                HotelProduct: '#/components/schemas/HotelProduct'
+                StaticOfferProduct: '#/components/schemas/StaticOfferProduct'
+          type: array
+          title: Products
+          description: Product list for quote, which could be static offer product
+            or hotel product
+      type: object
+      required:
+      - products
+      title: QuoteRequest
+      description: Schema for creating a new quote from either a static offer or a
+        hotel product.
+    QuoteResponse:
+      properties:
+        quoted_products:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/QuotedHotelProduct'
+            - $ref: '#/components/schemas/QuotedStaticOfferProduct'
+            discriminator:
+              propertyName: product_type
+              mapping:
+                HotelProduct: '#/components/schemas/QuotedHotelProduct'
+                StaticOfferProduct: '#/components/schemas/QuotedStaticOfferProduct'
+          type: array
+          minItems: 1
+          title: Quoted Products
+          description: List of quoted products, which could be static offer or hotel
+            product
+        payment_authorization:
+          $ref: '#/components/schemas/PaymentAuthorizationRead'
+          description: Payment authorization details
+      type: object
+      required:
+      - quoted_products
+      - payment_authorization
+      title: QuoteResponse
+      description: Schema for quote response including payment authorization.
+    QuotedHotelProduct:
+      properties:
+        product_type:
+          type: string
+          const: HotelProduct
+          title: Product Type
+          description: Hotel product discriminator.
+          default: HotelProduct
+        hotel_id:
+          type: integer
+          title: Hotel Id
+          description: Unique hotel ID
+        hotel_name:
+          type: string
+          title: Hotel Name
+          description: Hotel name
+        hotel_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hotel Description
+          description: Hotel description
+        hotel_address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hotel Address
+          description: Hotel address
+        hotel_image:
+          anyOf:
+          - $ref: '#/components/schemas/HotelImage'
+          - type: 'null'
+          description: Hotel image information
+        passenger_counts:
+          items:
+            $ref: '#/components/schemas/PassengerTypeCount'
+          type: array
+          title: Passenger Counts
+          description: List of passenger type counts for this QuotedOffer.
+        check_in_date:
+          type: string
+          format: date
+          title: Check In Date
+          description: Check-in date
+        check_out_date:
+          type: string
+          format: date
+          title: Check Out Date
+          description: Check-out date
+        rate_info:
+          $ref: '#/components/schemas/RateInfo'
+          description: Rate information for the hotel product
+        opaque_rate_data:
+          type: string
+          title: Opaque Rate Data
+          description: Opaque rate data as a JSON string
+      type: object
+      required:
+      - hotel_id
+      - hotel_name
+      - check_in_date
+      - check_out_date
+      - rate_info
+      - opaque_rate_data
+      title: QuotedHotelProduct
+      description: Schema for hotel quote response.
+    QuotedOfferRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique ID for the QuotedOffer.
+        static_offer_id:
+          type: string
+          format: uuid
+          title: Static Offer Id
+        advisor_id:
+          type: string
+          format: uuid
+          title: Advisor Id
+        final_price:
+          $ref: '#/components/schemas/Amount-Output'
+        pricing_timestamp:
+          type: string
+          format: date-time
+          title: Pricing Timestamp
+          description: Timestamp of when this quote was generated.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Timestamp when the QuotedOffer was created.
+        passenger_counts:
+          items:
+            $ref: '#/components/schemas/PassengerTypeCount'
+          type: array
+          title: Passenger Counts
+          description: List of passenger type counts for this QuotedOffer.
+      type: object
+      required:
+      - id
+      - static_offer_id
+      - advisor_id
+      - final_price
+      - pricing_timestamp
+      - created_at
+      title: QuotedOfferRead
+      description: Schema for reading a QuotedOffer.
+    QuotedStaticOfferProduct:
+      properties:
+        product_type:
+          type: string
+          const: StaticOfferProduct
+          title: Product Type
+          description: Static offer product discriminator.
+          default: StaticOfferProduct
+        quoted_offer:
+          $ref: '#/components/schemas/QuotedOfferRead'
+          description: Quoted static offer.
+      type: object
+      required:
+      - quoted_offer
+      title: QuotedStaticOfferProduct
+    RateInfo:
+      properties:
+        rate_id:
+          type: string
+          title: Rate Id
+          description: Unique identifier for the rate
+        check_in_date:
+          type: string
+          format: date
+          title: Check In Date
+          description: Check-in date for the rate
+        check_out_date:
+          type: string
+          format: date
+          title: Check Out Date
+          description: Check-out date for the rate
+        provider_id:
+          type: string
+          title: Provider Id
+          description: ID of the provider offering the rate
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Description of the rate
+        selling_price:
+          $ref: '#/components/schemas/Amount-Output'
+          description: Price of the rate for selling
+        tax_and_fee:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Output'
+          - type: 'null'
+          description: Tax amount for the rate
+        base_price:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Output'
+          - type: 'null'
+          description: Base price before taxes and fees
+        is_refundable:
+          type: boolean
+          title: Is Refundable
+          description: Whether the rate is refundable
+        policies:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Policy'
+            type: array
+          - type: 'null'
+          title: Policies
+          description: List of policies associated with the rate
+        opaque:
+          type: string
+          title: Opaque
+          description: Serialized rate object for quote requests
+      type: object
+      required:
+      - rate_id
+      - check_in_date
+      - check_out_date
+      - provider_id
+      - selling_price
+      - is_refundable
+      - opaque
+      title: RateInfo
+      description: Rate information for a room.
+    RoomInfo:
+      properties:
+        room_id:
+          type: string
+          title: Room Id
+          description: Unique identifier for the room
+        room_name:
+          type: string
+          title: Room Name
+          description: Name of the room
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Description of the room
+        max_occupancy:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Occupancy
+          description: Maximum occupancy of the room
+        beds:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/BedInfo'
+            type: array
+          - type: 'null'
+          title: Beds
+          description: Bed configurations in the room
+        amenities:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Amenity'
+            type: array
+          - type: 'null'
+          title: Amenities
+          description: Amenities available in the room
+        images:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/HotelImage'
+            type: array
+          - type: 'null'
+          title: Images
+          description: Images of the room
+        min_price:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Output'
+          - type: 'null'
+          description: Minimum price across all rooms/rates
+        max_price:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Output'
+          - type: 'null'
+          description: Maximum price across all rooms/rates
+        lowest_rate:
+          $ref: '#/components/schemas/RateInfo'
+          description: Lowest rate available for the room
+        rates:
+          items:
+            $ref: '#/components/schemas/RateInfo'
+          type: array
+          title: Rates
+          description: Available rates for the room
+      type: object
+      required:
+      - room_id
+      - room_name
+      - lowest_rate
+      - rates
+      title: RoomInfo
+      description: Room information including rates.
+    ScheduleFulfillmentResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+      type: object
+      required:
+      - id
+      title: ScheduleFulfillmentResponse
+      description: Response model for scheduled fulfillment tasks.
+    ScheduleQuoteResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+      type: object
+      required:
+      - id
+      title: ScheduleQuoteResponse
+      description: Response model for scheduled quote tasks.
+    StaticOfferCreate:
+      properties:
+        package_id:
+          type: string
+          format: uuid
+          title: Package Id
+          description: ID of the Package this offer belongs to.
+        status:
+          $ref: '#/components/schemas/StaticOfferStatus'
+          description: Status of this static offer.
+          default: enabled
+        departure_date:
+          type: string
+          format: date
+          title: Departure Date
+          description: Departure date for this offer.
+        return_date:
+          type: string
+          format: date
+          title: Return Date
+          description: Return date for this offer.
+        duration_days:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Days
+          description: Duration in days. Can be derived from dates if desired.
+        price:
+          $ref: '#/components/schemas/Amount-Input'
+          description: Price for this specific date-based offer.
+        max_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Capacity
+          description: Maximum capacity for this offer.
+        remaining_slots:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Remaining Slots
+          description: Remaining slots available for this offer.
+        allow_children:
+          type: boolean
+          title: Allow Children
+          description: If child is allowed.
+          default: true
+        allow_infants:
+          type: boolean
+          title: Allow Infants
+          description: If infant is allowed.
+          default: true
+      type: object
+      required:
+      - package_id
+      - departure_date
+      - return_date
+      - price
+      title: StaticOfferCreate
+      description: For creating a new StaticOffer.
+    StaticOfferFulfillment:
+      properties:
+        product_type:
+          type: string
+          const: StaticOfferProduct
+          title: Product Type
+          description: Static offer product discriminator.
+          default: StaticOfferProduct
+        order:
+          $ref: '#/components/schemas/OrderRead'
+      type: object
+      required:
+      - order
+      title: StaticOfferFulfillment
+    StaticOfferProduct:
+      properties:
+        product_type:
+          type: string
+          const: StaticOfferProduct
+          title: Product Type
+          description: Static offer product discriminator.
+          default: StaticOfferProduct
+        static_offer_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Static Offer Id
+          description: ID of the static offer to quote.
+        passenger_counts:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/PassengerTypeCount'
+            type: array
+            minItems: 1
+          - type: 'null'
+          title: Passenger Counts
+          description: List of passenger type counts for static offers
+      type: object
+      title: StaticOfferProduct
+    StaticOfferRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique ID of the static offer.
+        package_id:
+          type: string
+          format: uuid
+          title: Package Id
+        status:
+          $ref: '#/components/schemas/StaticOfferStatus'
+        departure_date:
+          type: string
+          format: date
+          title: Departure Date
+        return_date:
+          type: string
+          format: date
+          title: Return Date
+        duration_days:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Days
+        price:
+          $ref: '#/components/schemas/Amount-Output'
+        max_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Capacity
+        remaining_slots:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Remaining Slots
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: When the static offer was created.
+      type: object
+      required:
+      - id
+      - package_id
+      - status
+      - departure_date
+      - return_date
+      - duration_days
+      - price
+      - max_capacity
+      - remaining_slots
+      - created_at
+      title: StaticOfferRead
+      description: For reading a StaticOffer, including server-generated fields.
+    StaticOfferStatus:
+      type: string
+      enum:
+      - enabled
+      - disabled
+      title: StaticOfferStatus
+    StaticOfferUpdate:
+      properties:
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/StaticOfferStatus'
+          - type: 'null'
+        departure_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Departure Date
+        return_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Return Date
+        duration_days:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Days
+        price:
+          anyOf:
+          - $ref: '#/components/schemas/Amount-Input'
+          - type: 'null'
+        max_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Capacity
+        remaining_slots:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Remaining Slots
+      type: object
+      title: StaticOfferUpdate
+      description: For partially updating a StaticOffer.
+    TokenResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          type: string
+          title: Token Type
+      type: object
+      required:
+      - access_token
+      - token_type
+      title: TokenResponse
+      description: Response model for token generation.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    app__services__hotel__models__ProviderType:
+      type: string
+      enum:
+      - internal
+      - hotelbeds
+      - custom
+      title: ProviderType
+    app__services__hotel__schemas__ProviderType:
+      type: string
+      enum:
+      - internal
+      - expedia
+      - booking
+      - amadeus
+      - sabre
+      - custom
+      title: ProviderType
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      description: 'JWT token authentication. Format: Bearer {token}'
+      scheme: bearer
+servers:
+- url: https://api.dev.jinkotravel.com
+  description: Development API server
+- url: http://localhost:8000
+  description: Local development server
