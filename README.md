@@ -70,12 +70,33 @@ The server uses the following API endpoints from the Jinko Travel BFF:
 
 ## Facilities Data
 
-The server uses the facilities data from `facilities.json` to provide information about hotel facilities. This data is exposed as resources in the MCP server, allowing LLMs to access it directly.
+The server uses the facilities data from `facilities.json` to provide information about hotel facilities. This data is exposed as a resource in the MCP server, allowing LLMs to access it directly.
 
 ### Available Resources
 
-1. **facilities**: Complete list of all hotel facilities with translations
-2. **facilities-by-id**: Map of facilities indexed by their ID for easy lookup
-3. **facility-{id}**: Individual facility by ID (e.g., facility-47 for WiFi)
+- `hotel:///facilities` - List of all available hotel facilities with translations
 
-These resources can be accessed using the MCP resources/read method.
+This resource can be accessed using the MCP resources/read method.
+
+### HTTP Server for Facilities
+
+For testing and development purposes, you can also run a simple HTTP server to access the facilities data:
+
+```bash
+# Run the HTTP server
+node run-facilities-http.js
+```
+
+#### Available Endpoints
+
+- `GET /facilities` - Returns a list of all available hotel facilities with translations
+- `GET /facilities/{facility_id}` - Returns details of a specific hotel facility by ID
+- `GET /facilities/language/{lang}` - Returns all facilities translated to a specific language
+
+#### Example Usage
+
+- http://localhost:59106/facilities
+- http://localhost:59106/facilities/47
+- http://localhost:59106/facilities/language/en
+- http://localhost:59106/facilities/language/es
+- http://localhost:59106/facilities/language/de

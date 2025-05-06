@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import fs from "fs";
@@ -442,15 +442,47 @@ Quote ID: ${quoteId}
   }
 );
 
+// Register facilities as resources
+// This exposes the facilities.json data as a resource in the MCP server
+server.resource(
+  "Hotel Facilities",
+  "hotel:///facilities",
+  {
+    description: "List of all available hotel facilities with translations",
+    mimeType: "application/json"
+  },
+  async (uri) => {
+    return {
+      contents: [
+        {
+          uri: uri.toString(),
+          mimeType: "application/json",
+          text: JSON.stringify(facilitiesData, null, 2)
+        }
+      ]
+    };
+  }
+);
+
 // Start the server
 async function main() {
-  // Use the port provided by the runtime information
-  const port = 54117;
-  const transport = new StdioServerTransport();
+  try {
+    // Use the port provided by the runtime information
+    const port = 52122; // Using one of the available ports from runtime information
+    const transport = new StdioServerTransport();
 
-  await server.connect(transport);
-  console.log(`Hotel Booking MCP Server running on http://localhost:${port}`);
-  console.log(`Loaded ${facilitiesData.length} facilities as resources`);
+    console.log("Starting MCP server...");
+    await server.connect(transport);
+    console.log(`Hotel Booking MCP Server running on http://localhost:${port}`);
+    console.log(`Loaded ${facilitiesData.length} facilities as resources`);
+    console.log(`Available resources:`);
+    console.log(`- hotel:///facilities (All facilities)`);
+    console.log(`- hotel:///facilities/{facility_id} (Individual facility)`);
+    console.log(`- hotel:///facilities/language/{lang} (Facilities by language)`);
+  } catch (error) {
+    console.error("Error starting server:", error);
+    throw error;
+  }
 }
 
 main().catch((error) => {
