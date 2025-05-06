@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 
 // Base URL for the travel BFF API
-const API_BASE_URL = "https://api.jinkotravel.com";
+const API_BASE_URL = "https://api.dev.jinkotravel.com";
 
 // Session storage to keep track of hotel search results and place suggestions
 interface SessionData {
@@ -160,6 +160,7 @@ server.tool(
       check_out_date: params.check_out_date,
       adults: params.adults,
       children: params.children,
+      limit: 100,
     };
 
     // Make API request to search for hotels
