@@ -602,21 +602,5 @@ server.resource(
   }
 );
 
-// Start the server
-async function main() {
-  try {
-    // Use the port provided by the runtime information
-    const port = 52122; // Using one of the available ports from runtime information
-    const transport = new StdioServerTransport();
-
-    await server.connect(transport);
-  } catch (error) {
-    console.error("Error starting server:", error);
-    throw error;
-  }
-}
-
-main().catch((error) => {
-  console.error("Fatal error in main():", error);
-  process.exit(1);
-});
+// Export the server instance
+export { server };

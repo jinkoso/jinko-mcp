@@ -14,13 +14,35 @@ This repository contains a Machine Conversation Protocol (MCP) server for hotel 
 
 The server maintains a session to store hotel search results, allowing for efficient retrieval of hotel details without making additional API calls.
 
+## Installation
+
+You can install the package globally:
+
+```bash
+npm install -g jinko-mcp
+```
+
+Or run it directly with npx:
+
+```bash
+npx jinko-mcp
+```
+
 ## Running the Server
+
+### Using npm
 
 ```bash
 npm run start
 ```
 
-The server will run on http://localhost:54117. This MCP server uses the HttpServerTransport, which allows it to be accessed by LLM clients that support the MCP protocol.
+### Using npx (after publishing)
+
+```bash
+npx jinko-mcp
+```
+
+The MCP server uses stdio transport, which means it can be used directly with MCP clients that support this transport type.
 
 ## Tools
 
@@ -124,3 +146,29 @@ node run-facilities-http.js
 - http://localhost:59106/facilities/language/en
 - http://localhost:59106/facilities/language/es
 - http://localhost:59106/facilities/language/de
+
+## Publishing to npm
+
+To publish this package to npm, follow these steps:
+
+1. Make sure you have an npm account and are logged in:
+   ```bash
+   npm login
+   ```
+
+2. Update the version number in package.json if needed:
+   ```bash
+   npm version patch  # or minor or major
+   ```
+
+3. Build the project:
+   ```bash
+   npm run build
+   ```
+
+4. Publish to npm:
+   ```bash
+   npm publish
+   ```
+
+After publishing, users can install and run the package using npm or npx as described in the Installation section.
