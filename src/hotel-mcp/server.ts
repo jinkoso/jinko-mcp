@@ -7,14 +7,18 @@ import path from "path";
 // Base URL for the travel BFF API
 const API_BASE_URL = "https://api.jinkotravel.com";
 
-// Session storage to keep track of hotel search results
+// Session storage to keep track of hotel search results and place suggestions
 interface SessionData {
   hotels: Record<string, any>; // Store hotels by ID
+  placeSuggestions: any[]; // Store place suggestions from autocomplete
+  confirmedPlace: any | null; // Store the confirmed place for search
 }
 
 // Initialize session
 const session: SessionData = {
   hotels: {},
+  placeSuggestions: [],
+  confirmedPlace: null,
 };
 
 // Load facilities data
@@ -124,22 +128,32 @@ server.tool(
   "search-hotels",
   "Search for available hotels based on location, dates, and other criteria",
   {
+    use_confirmed_place: z.boolean().default(false).describe("Whether to use the confirmed place from autocomplete"),
     location: z.object({
       latitude: z.number().describe("Latitude coordinate"),
       longitude: z.number().describe("Longitude coordinate"),
     }).optional().describe("Center point for proximity search"),
-    radius_km: z.number().optional().describe("Search radius in kilometers"),
-    city: z.string().optional().describe("City name to search in"),
-    country: z.string().optional().describe("Country code (e.g., US, FR)"),
     check_in_date: z.string().describe("Check-in date (YYYY-MM-DD)"),
     check_out_date: z.string().describe("Check-out date (YYYY-MM-DD)"),
     adults: z.number().min(1).default(2).describe("Number of adults"),
     children: z.number().min(0).default(0).describe("Number of children"),
-    min_ranking: z.number().min(1).max(5).optional().describe("Minimum hotel ranking (1-5 stars)"),
-    tags: z.array(z.string()).optional().describe("Tags to filter hotels by"),
-    facilities: z.array(z.number()).optional().describe("Facility IDs to filter hotels by"),
+    facilities: z.array(z.number()).optional().describe("Facility IDs to filter hotels by, the IDs can be inferred with facilities resource according to user's requirements."),  
   },
   async (params) => {
+    // Check if we should use the confirmed place
+    if (params.use_confirmed_place) {
+      if (!session.confirmedPlace) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No confirmed place available. Please use the autocomplete-place tool first to find and confirm a location.",
+            },
+          ],
+        };
+      }
+    }
+
     // Prepare request body for hotel availability API
     const requestBody: any = {
       check_in_date: params.check_in_date,
@@ -147,29 +161,6 @@ server.tool(
       adults: params.adults,
       children: params.children,
     };
-
-    // Add optional parameters if provided
-    if (params.location) {
-      requestBody.location = params.location;
-    }
-    if (params.radius_km) {
-      requestBody.radius_km = params.radius_km;
-    }
-    if (params.city) {
-      requestBody.city = params.city;
-    }
-    if (params.country) {
-      requestBody.country = params.country;
-    }
-    if (params.min_ranking) {
-      requestBody.min_ranking = params.min_ranking;
-    }
-    if (params.tags) {
-      requestBody.tags = params.tags;
-    }
-    if (params.facilities) {
-      requestBody.facilities = params.facilities;
-    }
 
     // Make API request to search for hotels
     const availabilityResult = await makeApiRequest<any>(
@@ -436,6 +427,144 @@ Quote ID: ${quoteId}
         {
           type: "text",
           text: responseText,
+        },
+      ],
+    };
+  }
+);
+
+// Register place autocomplete tool
+server.tool(
+  "autocomplete-place",
+  "Get place suggestions based on user input",
+  {
+    query: z.string().describe("User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')"),
+  },
+  async ({ query }) => {
+    // Make API request to get place suggestions
+    const autocompleteResult = await makeApiRequest<any>(
+      "/api/v1/hotels/places/autocomplete",
+      "POST",
+      { query }
+    );
+
+    if (!autocompleteResult || !autocompleteResult.places) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Failed to retrieve place suggestions. Please try again with a different query.",
+          },
+        ],
+      };
+    }
+
+    const { places = [] } = autocompleteResult;
+
+    if (places.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No places found matching your query. Please try a different search term.",
+          },
+        ],
+      };
+    }
+
+    // Store place suggestions in session
+    session.placeSuggestions = places;
+
+    // Format results for LLM
+    const placeSummaries = places.map((place: any, index: number) => {
+      return `
+${index + 1}. ${place.name}
+   Type: ${place.type || "Unknown"}
+   Location: ${place.city || ""}, ${place.country || ""}
+   ID: ${place.id}
+      `.trim();
+    });
+
+    let responseText = "";
+    
+    if (places.length === 1) {
+      // If only one place is found, automatically confirm it
+      session.confirmedPlace = places[0];
+      responseText = `
+Found 1 place matching your query:
+
+${placeSummaries[0]}
+
+This place has been automatically selected for your search. You can now use the search-hotels tool to find hotels in this location.
+      `.trim();
+    } else {
+      // If multiple places are found, ask user to confirm
+      responseText = `
+Found ${places.length} places matching your query:
+
+${placeSummaries.join("\n\n")}
+
+Please use the confirm-place tool with the ID of the place you want to select.
+      `.trim();
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: responseText,
+        },
+      ],
+    };
+  }
+);
+
+// Register place confirmation tool
+server.tool(
+  "confirm-place",
+  "Confirm a place from the suggestions for hotel search",
+  {
+    place_id: z.string().describe("ID of the place to confirm from the suggestions"),
+  },
+  async ({ place_id }) => {
+    // Check if we have place suggestions
+    if (session.placeSuggestions.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No place suggestions available. Please use the autocomplete-place tool first.",
+          },
+        ],
+      };
+    }
+
+    // Find the place in suggestions
+    const selectedPlace = session.placeSuggestions.find((place: any) => place.id === place_id);
+
+    if (!selectedPlace) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Place with ID ${place_id} not found in the suggestions. Please use a valid place ID from the autocomplete results.`,
+          },
+        ],
+      };
+    }
+
+    // Store the confirmed place
+    session.confirmedPlace = selectedPlace;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `
+Place confirmed: ${selectedPlace.name}, ${selectedPlace.city || ""}, ${selectedPlace.country || ""}
+
+You can now use the search-hotels tool to find hotels in this location.
+          `.trim(),
         },
       ],
     };

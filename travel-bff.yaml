@@ -15,7 +15,7 @@ info:
     - Handling payments via Stripe
 
     '
-  version: 0.3.1
+  version: 0.3.2
   contact:
     name: Jinko Travel Team
     email: support@jinkotravel.com
@@ -1722,6 +1722,50 @@ paths:
       responses:
         '204':
           description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/hotels/places/autocomplete:
+    post:
+      tags:
+      - hotels
+      summary: Autocomplete Places
+      description: 'Autocomplete places using Google Maps Places API.
+
+
+        This endpoint allows searching for places based on a text string and returns
+
+        a list of predictions with place details including latitude and longitude.
+
+
+        The results can be used for:
+
+        - Location search in hotel booking
+
+        - Destination selection
+
+        - Address autocompletion
+
+
+        The latitude and longitude coordinates can be used in subsequent hotel search
+        requests.'
+      operationId: autocomplete_places_api_v1_hotels_places_autocomplete_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceAutocompleteRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceAutocompleteResponse'
         '422':
           description: Validation Error
           content:
@@ -3718,6 +3762,100 @@ components:
       description: 'Possible provider for payment processing:
 
         - stripe: Stripe payment provider.'
+    PlaceAutocompleteRequest:
+      properties:
+        input:
+          type: string
+          title: Input
+          description: The text string on which to search
+        language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Language
+          description: The language code, indicating in which language the results
+            should be returned
+      type: object
+      required:
+      - input
+      title: PlaceAutocompleteRequest
+      description: Request parameters for place autocompletion.
+    PlaceAutocompleteResponse:
+      properties:
+        predictions:
+          items:
+            $ref: '#/components/schemas/PlaceDetails'
+          type: array
+          title: Predictions
+          description: List of place predictions
+        status:
+          type: string
+          title: Status
+          description: Status of the request
+      type: object
+      required:
+      - predictions
+      - status
+      title: PlaceAutocompleteResponse
+      description: Response for place autocompletion.
+    PlaceDetails:
+      properties:
+        place_id:
+          type: string
+          title: Place Id
+          description: A textual identifier that uniquely identifies a place
+        description:
+          type: string
+          title: Description
+          description: Human-readable name for the place
+        structured_formatting:
+          additionalProperties: true
+          type: object
+          title: Structured Formatting
+          description: Structured formatting of the place description
+        types:
+          items:
+            type: string
+          type: array
+          title: Types
+          description: Types of the place
+        terms:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Terms
+          description: Terms of the place
+        matched_substrings:
+          items:
+            additionalProperties:
+              type: integer
+            type: object
+          type: array
+          title: Matched Substrings
+          description: Matched substrings in the place description
+        latitude:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latitude
+          description: Latitude coordinate of the place
+        longitude:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Longitude
+          description: Longitude coordinate of the place
+      type: object
+      required:
+      - place_id
+      - description
+      - structured_formatting
+      - types
+      - terms
+      - matched_substrings
+      title: PlaceDetails
+      description: Details of a place from autocompletion.
     Policy:
       properties:
         type:

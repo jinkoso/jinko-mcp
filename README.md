@@ -4,9 +4,11 @@ This repository contains a Machine Conversation Protocol (MCP) server for hotel 
 
 ## Features
 
-1. **Search Hotels**: Search for available hotels based on location, dates, and other criteria
-2. **Get Hotel Details**: Get detailed information about a specific hotel by ID
-3. **Book Hotel**: Book a hotel by creating a quote and returning a payment link
+1. **Place Autocomplete**: Get place suggestions based on user input
+2. **Place Confirmation**: Confirm a place from the suggestions for hotel search
+3. **Search Hotels**: Search for available hotels based on location, dates, and other criteria
+4. **Get Hotel Details**: Get detailed information about a specific hotel by ID
+5. **Book Hotel**: Book a hotel by creating a quote and returning a payment link
 
 ## Session Management
 
@@ -22,11 +24,30 @@ The server will run on http://localhost:54117. This MCP server uses the HttpServ
 
 ## Tools
 
-### 1. search-hotels
+### 1. autocomplete-place
+
+Get place suggestions based on user input.
+
+**Parameters:**
+- `query`: User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')
+
+This tool returns a list of place suggestions matching the user's query. If only one place is found, it's automatically confirmed. If multiple places are found, the user needs to confirm their choice using the confirm-place tool.
+
+### 2. confirm-place
+
+Confirm a place from the suggestions for hotel search.
+
+**Parameters:**
+- `place_id`: ID of the place to confirm from the suggestions
+
+This tool confirms a place from the suggestions returned by the autocomplete-place tool. The confirmed place will be used for hotel searches.
+
+### 3. search-hotels
 
 Search for available hotels based on location, dates, and other criteria.
 
 **Parameters:**
+- `use_confirmed_place` (optional): Whether to use the confirmed place from autocomplete (default: false)
 - `location` (optional): Center point for proximity search
   - `latitude`: Latitude coordinate
   - `longitude`: Longitude coordinate
@@ -41,14 +62,16 @@ Search for available hotels based on location, dates, and other criteria.
 - `tags` (optional): Tags to filter hotels by
 - `facilities` (optional): Facility IDs to filter hotels by
 
-### 2. get-hotel-details
+When `use_confirmed_place` is set to true, the tool will use the place confirmed by the confirm-place tool for the search.
+
+### 4. get-hotel-details
 
 Get detailed information about a specific hotel by ID.
 
 **Parameters:**
 - `hotel_id`: ID of the hotel to get details for
 
-### 3. book-hotel
+### 5. book-hotel
 
 Book a hotel by creating a quote and returning a payment link.
 
@@ -63,6 +86,7 @@ Book a hotel by creating a quote and returning a payment link.
 
 The server uses the following API endpoints from the Jinko Travel BFF:
 
+- `/api/v1/hotels/places/autocomplete`: Get place suggestions based on user input
 - `/api/v1/hotels/availability`: Search for available hotels
 - `/api/v1/hotels/{hotel_id}`: Get hotel details
 - `/api/v1/booking/quote/schedule`: Schedule a quote
