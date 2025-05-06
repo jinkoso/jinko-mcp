@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import fs from "fs";
 import path from "path";
+import { request } from "http";
 
 // Base URL for the travel BFF API
 const API_BASE_URL = "https://api.dev.jinkotravel.com";
@@ -28,7 +29,6 @@ try {
   if (fs.existsSync(facilitiesPath)) {
     const data = fs.readFileSync(facilitiesPath, "utf-8");
     facilitiesData = JSON.parse(data);
-    console.log(`Loaded ${facilitiesData.length} facilities`);
   } else {
     console.warn("facilities.json not found at:", facilitiesPath);
   }
@@ -85,39 +85,28 @@ async function makeApiRequest<T>(
 
 // Format hotel information for LLM consumption
 function formatHotelInfo(hotel: any): string {
-  const {
-    id,
-    name,
-    description,
-    address,
-    city,
-    country,
-    ranking,
-    facilities = [],
-    rooms = []
-  } = hotel;
+  if (!hotel) {
+    return "No hotel information available.";
+  }
 
   let formattedRooms = "";
-  if (rooms && rooms.length > 0) {
-    formattedRooms = "\nAvailable Rooms:\n" + rooms.map((room: any) => {
-      return `- ${room.name || "Standard Room"}: ${room.description || "No description"} - Price: ${room.price?.amount || "N/A"} ${room.price?.currency || "USD"}`;
+  if (hotel.rooms && hotel.rooms.length > 0) {
+    formattedRooms = "\nAvailable Rooms:\n" + hotel.rooms.map((room: any) => {
+      return `- ${room.room_name || "Standard Room"} (rate id: ${room.lowest_rate.rate_id}): ${room.description || "No description"} - Price: ${room.min_price?.value || "N/A"} ${room.min_price?.currency || "USD"}`;
     }).join("\n");
   }
 
   let formattedFacilities = "";
-  if (facilities && facilities.length > 0) {
-    formattedFacilities = "\nFacilities:\n" + facilities.map((facilityId: number) => {
-      const facility = facilitiesData.find((f: any) => f.facility_id === facilityId);
-      return `- ${facility ? facility.facility : "Unknown facility"}`;
-    }).join("\n");
-  }
+  formattedFacilities = "\nFacilities:\n" + hotel.amenities.map((amenity: any) => {
+    return `- ${amenity.name || "Unknown Facility"}`;
+  }).join("\n");
 
   return `
-Hotel ID: ${id}
-Name: ${name}
-Ranking: ${ranking || "N/A"} stars
-Location: ${address || ""}, ${city || ""}, ${country || ""}
-${description ? `\nDescription: ${description}` : ""}
+Hotel ID: ${hotel.id}
+Name: ${hotel.name}
+Ranking: ${hotel.star_rating || "N/A"} stars
+Location: ${hotel.address || ""}
+${hotel.description}
 ${formattedFacilities}
 ${formattedRooms}
   `.trim();
@@ -126,40 +115,42 @@ ${formattedRooms}
 // Register hotel search tool
 server.tool(
   "search-hotels",
-  "Search for available hotels based on location, dates, and other criteria",
+  "Search for available hotels based on in a location based dates, and other criteria. The location is defined by the confirmed place.",
   {
-    use_confirmed_place: z.boolean().default(false).describe("Whether to use the confirmed place from autocomplete"),
-    location: z.object({
-      latitude: z.number().describe("Latitude coordinate"),
-      longitude: z.number().describe("Longitude coordinate"),
-    }).optional().describe("Center point for proximity search"),
-    check_in_date: z.string().describe("Check-in date (YYYY-MM-DD)"),
-    check_out_date: z.string().describe("Check-out date (YYYY-MM-DD)"),
+    check_in_date: z.string().default("2025-06-25").describe("Check-in date (YYYY-MM-DD)"),
+    check_out_date: z.string().default("2025-06-26").describe("Check-out date (YYYY-MM-DD)"),
     adults: z.number().min(1).default(2).describe("Number of adults"),
     children: z.number().min(0).default(0).describe("Number of children"),
-    facilities: z.array(z.number()).optional().describe("Facility IDs to filter hotels by, the IDs can be inferred with facilities resource according to user's requirements."),  
+    facilities: z.array(z.number()).optional().describe("Facility IDs to filter hotels by, the IDs can be inferred with facilities resource according to user's requirements."),
   },
   async (params) => {
     // Check if we should use the confirmed place
-    if (params.use_confirmed_place) {
-      if (!session.confirmedPlace) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "No confirmed place available. Please use the autocomplete-place tool first to find and confirm a location.",
-            },
-          ],
-        };
-      }
+    if (!session.confirmedPlace) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No confirmed place available. Please use the autocomplete-place tool first to find and confirm a location.",
+          },
+        ],
+      };
     }
 
     // Prepare request body for hotel availability API
     const requestBody: any = {
       check_in_date: params.check_in_date,
       check_out_date: params.check_out_date,
-      adults: params.adults,
-      children: params.children,
+      guests: [
+        {
+          adults: params.adults,
+          children: [],
+          infant: 0,
+        },
+      ],
+      location: {
+        latitude: session.confirmedPlace.latitude.toString(),
+        longitude: session.confirmedPlace.longitude.toString(),
+      },
       limit: 100,
     };
 
@@ -204,9 +195,9 @@ server.tool(
       return `
 Hotel ID: ${hotel.id}
 Name: ${hotel.name}
-Ranking: ${hotel.ranking || "N/A"} stars
-Location: ${hotel.address || ""}, ${hotel.city || ""}, ${hotel.country || ""}
-Price: From ${hotel.lowest_price?.amount || "N/A"} ${hotel.lowest_price?.currency || "USD"}
+Ranking: ${hotel.star_rating || "N/A"} stars
+Location: ${hotel.address || ""}
+Price: From ${hotel.min_price?.value || "N/A"} ${hotel.min_price?.currency || "USD"}
       `.trim();
     });
 
@@ -232,7 +223,7 @@ To get more details about a specific hotel, use the get-hotel-details tool with 
 // Register hotel details tool
 server.tool(
   "get-hotel-details",
-  "Get detailed information about a specific hotel by ID",
+  "Get detailed information about a specific hotel by ID, which are found by search-hotel method,",
   {
     hotel_id: z.string().describe("ID of the hotel to get details for"),
   },
@@ -250,41 +241,12 @@ server.tool(
           },
         ],
       };
-    }
-
-    // If not in session, try to fetch from API
-    try {
-      const hotelData = await makeApiRequest<any>(`/api/v1/hotels/${hotel_id}`, "GET");
-
-      if (!hotelData) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Could not find hotel with ID ${hotel_id}. Please make sure you have the correct ID or search for hotels first.`,
-            },
-          ],
-        };
-      }
-
-      // Store in session for future use
-      session.hotels[hotel_id] = hotelData;
-      const formattedHotel = formatHotelInfo(hotelData);
-
+    } else {
       return {
         content: [
           {
             type: "text",
-            text: formattedHotel,
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error retrieving hotel details for ID ${hotel_id}. Please try again later.`,
+            text: `Hotel with ID ${hotel_id} not found in session. Please use the search-hotels tool to find hotels first.`,
           },
         ],
       };
@@ -298,22 +260,58 @@ server.tool(
   "Book a hotel by creating a quote and returning payment link",
   {
     hotel_id: z.string().describe("ID of the hotel to book"),
-    provider_id: z.string().describe("ID of the provider"),
-    check_in_date: z.string().describe("Check-in date (YYYY-MM-DD)"),
-    check_out_date: z.string().describe("Check-out date (YYYY-MM-DD)"),
-    opaque_rate_data: z.string().describe("Opaque rate data from availability response"),
+    rate_id: z.string().describe("ID of the room to book"),
   },
   async (params) => {
+      // Check if hotel exists in session
+    if (!session.hotels[params.hotel_id]) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Hotel with ID ${params.hotel_id} not found in session. Please use the search-hotels tool to find hotels first.`,
+          },
+        ],
+      }; 
+    }
+
+
+    const hotel = session.hotels[params.hotel_id];
+    let room: any = null;
+    let rate: any = null;
+
+    for (const r of hotel.rooms) {
+      for (const rt of r.rates) {
+        if (rt.rate_id === params.rate_id) {
+          room = r;
+          rate = rt;
+          break;
+        }
+      }
+      if (room && rate) break;
+    }
+
+    if (!room || !rate) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Room or rate with ID ${params.rate_id} not found in hotel ${params.hotel_id}.`,
+          },
+        ],
+      };
+    }
+
     // Create quote request
     const quoteRequest = {
       products: [
         {
           product_type: "HotelProduct",
-          provider_id: params.provider_id,
-          hotel_id: params.hotel_id,
-          check_in_date: params.check_in_date,
-          check_out_date: params.check_out_date,
-          opaque_rate_data: params.opaque_rate_data,
+          provider_id: rate.provider_id,
+          hotel_id: hotel.id.toString(),
+          check_in_date: rate.check_in_date,
+          check_out_date: rate.check_out_date,
+          opaque_rate_data: rate.opaque,
         },
       ],
     };
@@ -325,7 +323,7 @@ server.tool(
       quoteRequest
     );
 
-    if (!scheduleResponse || !scheduleResponse.quote_id) {
+    if (!scheduleResponse || !scheduleResponse.id) {
       return {
         content: [
           {
@@ -336,13 +334,13 @@ server.tool(
       };
     }
 
-    const quoteId = scheduleResponse.quote_id;
+    const quoteId = scheduleResponse.id;
 
     // Poll for quote status
     let quoteStatus = "processing";
     let quoteResult = null;
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 30;
 
     while (quoteStatus === "processing" && attempts < maxAttempts) {
       attempts++;
@@ -398,17 +396,19 @@ server.tool(
       };
     }
 
+    const encodedQuoteId = Buffer.from(quoteId).toString("base64");
+
     // Format quote information
-    const paymentLink = `http://www.jinko.so/booking/pay/${quoteId}`;
+    const paymentLink = `http://www.jinko.so/booking/pay/${encodedQuoteId}`;
 
     let productInfo = "";
     if (quoteResult.quoted_products && quoteResult.quoted_products.length > 0) {
       const product = quoteResult.quoted_products[0];
       productInfo = `
 Hotel: ${product.hotel_name || "Unknown hotel"}
-Check-in: ${params.check_in_date}
-Check-out: ${params.check_out_date}
-Total Price: ${product.final_price?.amount || "N/A"} ${product.final_price?.currency || "USD"}
+Check-in: ${product.check_in_date}
+Check-out: ${product.check_out_date}
+Total Price: ${product.rate_info.selling_price?.amount || "N/A"} ${product.rate_info.selling_price?.currency || "USD"}
       `.trim();
     }
 
@@ -420,7 +420,7 @@ ${productInfo}
 To complete your booking, please proceed to the payment page:
 ${paymentLink}
 
-Quote ID: ${quoteId}
+Quote ID: ${encodedQuoteId}
     `.trim();
 
     return {
@@ -440,16 +440,25 @@ server.tool(
   "Get place suggestions based on user input",
   {
     query: z.string().describe("User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')"),
+    language: z.string().optional().describe("The language used by user."),
   },
-  async ({ query }) => {
+  async (params) => {
     // Make API request to get place suggestions
+    const request = {
+      "input": params.query,
+      "langauge": "en",
+    };
+    if (params.language) {
+      request.langauge = params.language;
+    }
+
     const autocompleteResult = await makeApiRequest<any>(
       "/api/v1/hotels/places/autocomplete",
       "POST",
-      { query }
+      request,
     );
 
-    if (!autocompleteResult || !autocompleteResult.places) {
+    if (!autocompleteResult) {
       return {
         content: [
           {
@@ -460,9 +469,8 @@ server.tool(
       };
     }
 
-    const { places = [] } = autocompleteResult;
 
-    if (places.length === 0) {
+    if (autocompleteResult.predictions.length === 0) {
       return {
         content: [
           {
@@ -474,23 +482,23 @@ server.tool(
     }
 
     // Store place suggestions in session
-    session.placeSuggestions = places;
+    session.placeSuggestions = autocompleteResult.predictions;
 
     // Format results for LLM
-    const placeSummaries = places.map((place: any, index: number) => {
+    const placeSummaries = autocompleteResult.predictions.map((place: any, index: number) => {
       return `
-${index + 1}. ${place.name}
-   Type: ${place.type || "Unknown"}
-   Location: ${place.city || ""}, ${place.country || ""}
-   ID: ${place.id}
+${index + 1}. ${place.structured_formatting?.main_text || place.description}
+   Type: ${place.types || "Unknown"}
+   Location: ${place.description || ""}
+   ID: ${place.place_id}
       `.trim();
     });
 
     let responseText = "";
-    
-    if (places.length === 1) {
+
+    if (autocompleteResult.predictions.length === 1) {
       // If only one place is found, automatically confirm it
-      session.confirmedPlace = places[0];
+      session.confirmedPlace = autocompleteResult.predictions[0];
       responseText = `
 Found 1 place matching your query:
 
@@ -501,7 +509,7 @@ This place has been automatically selected for your search. You can now use the 
     } else {
       // If multiple places are found, ask user to confirm
       responseText = `
-Found ${places.length} places matching your query:
+Found ${autocompleteResult.predictions.length} places matching your query:
 
 ${placeSummaries.join("\n\n")}
 
@@ -541,7 +549,7 @@ server.tool(
     }
 
     // Find the place in suggestions
-    const selectedPlace = session.placeSuggestions.find((place: any) => place.id === place_id);
+    const selectedPlace = session.placeSuggestions.find((place: any) => place.place_id === place_id);
 
     if (!selectedPlace) {
       return {
@@ -562,7 +570,7 @@ server.tool(
         {
           type: "text",
           text: `
-Place confirmed: ${selectedPlace.name}, ${selectedPlace.city || ""}, ${selectedPlace.country || ""}
+Place confirmed: ${selectedPlace.description},
 
 You can now use the search-hotels tool to find hotels in this location.
           `.trim(),
@@ -601,14 +609,7 @@ async function main() {
     const port = 52122; // Using one of the available ports from runtime information
     const transport = new StdioServerTransport();
 
-    console.log("Starting MCP server...");
     await server.connect(transport);
-    console.log(`Hotel Booking MCP Server running on http://localhost:${port}`);
-    console.log(`Loaded ${facilitiesData.length} facilities as resources`);
-    console.log(`Available resources:`);
-    console.log(`- hotel:///facilities (All facilities)`);
-    console.log(`- hotel:///facilities/{facility_id} (Individual facility)`);
-    console.log(`- hotel:///facilities/language/{lang} (Facilities by language)`);
   } catch (error) {
     console.error("Error starting server:", error);
     throw error;
