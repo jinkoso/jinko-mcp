@@ -761,7 +761,7 @@ async function bookHotel(params: { hotel_id: string; rate_id: string }) {
 
   // Format quote information
   const encodedQuoteId = Buffer.from(quoteId).toString("base64");
-  const paymentLink = `http://www.jinko.so/booking/pay/${encodedQuoteId}`;
+  const paymentLink = `https://hotel-demo.lovable.app/checkout/${encodedQuoteId}`;
 
   let productInfo: BookingQuoteResponse = {
     status: "success",
@@ -922,6 +922,31 @@ const server = new McpServer({
 
 // ========== Register Tools ==========
 /**
+ * Get place suggestions based on user input
+ */
+server.tool(
+  "autocomplete-place",
+  "Get place suggestions based on user input",
+  {
+    query: z.string().describe("User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')"),
+    language: z.string().optional().describe("The language used by user."),
+  },
+  autocompletePlaces
+);
+
+/**
+ * Confirm a place from the suggestions for hotel search
+ */
+server.tool(
+  "confirm-place",
+  "Confirm a place from the suggestions for hotel search",
+  {
+    place_id: z.string().describe("ID of the place to confirm from the suggestions"),
+  },
+  confirmPlace
+);
+
+/**
  * Search for available hotels
  */
 server.tool(
@@ -962,31 +987,6 @@ server.tool(
     rate_id: z.string().describe("ID of the room to book"),
   },
   bookHotel
-);
-
-/**
- * Get place suggestions based on user input
- */
-server.tool(
-  "autocomplete-place",
-  "Get place suggestions based on user input",
-  {
-    query: z.string().describe("User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')"),
-    language: z.string().optional().describe("The language used by user."),
-  },
-  autocompletePlaces
-);
-
-/**
- * Confirm a place from the suggestions for hotel search
- */
-server.tool(
-  "confirm-place",
-  "Confirm a place from the suggestions for hotel search",
-  {
-    place_id: z.string().describe("ID of the place to confirm from the suggestions"),
-  },
-  confirmPlace
 );
 
 // ========== Register Resources ==========
