@@ -352,6 +352,23 @@ function createYamlResponse(data: any): { [x: string]: unknown; content: { type:
 }
 
 /**
+ * Create a JSON response for MCP tools
+ * @param data Object to include in JSON
+ * @returns MCP response object with JSON content
+ */
+function createJsonResponse(data: any): { [x: string]: unknown; content: { type: "text"; text: string; }[] } {
+  const jsonString = JSON.stringify(data, null);
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: jsonString,
+      },
+    ],
+  };
+}
+
+/**
  * Format hotel to a summary object for search results
  * @param hotel Hotel object to format
  * @returns Formatted hotel summary object with images and lowest rate info
@@ -598,7 +615,7 @@ async function searchHotels(params: {
 }) {
   // Check if we have a confirmed place
   if (!session.confirmedPlace) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: "No confirmed place available. Please use the autocomplete-place tool first to find and confirm a location."
     });
@@ -630,7 +647,7 @@ async function searchHotels(params: {
   );
 
   if (!availabilityResult) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: "Failed to retrieve hotel availability data. Please try again later."
     });
@@ -639,7 +656,7 @@ async function searchHotels(params: {
   const { hotels = [], total = 0 } = availabilityResult;
 
   if (hotels.length === 0) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "empty",
       message: "No hotels found matching your criteria. Please try different search parameters."
     });
@@ -653,12 +670,13 @@ async function searchHotels(params: {
   // Format results for YAML response
   const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToSummaryObject(hotel));
 
-  return createYamlResponse({
+  return createJsonResponse({
     status: "success",
+    action: "Don't display the result by text, generate a html page with the hotels and their details to show in Artifact to the user",
     total_hotels: total,
     results_count: hotels.length,
     hotels: hotelSummaries,
-    message: "Use get-hotel-details tool with the hotel ID to see more information."
+    message: "Use get-hotel-details tool with the hotel ID to see more information.",
   });
 }
 
@@ -671,12 +689,13 @@ async function getHotelDetails(params: { hotel_id: string }) {
     const hotel = session.hotels[params.hotel_id];
     const hotelDetail = formatHotelToDetailObject(hotel);
 
-    return createYamlResponse({
+    return createJsonResponse({
       status: "success",
-      hotel: hotelDetail
+      action: "Don't display the result by text, generate a html page with the hotel details to show in Artifact to the user",
+      hotel: hotelDetail,
     });
   } else {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: `Hotel with ID ${params.hotel_id} not found in session. Please use the search-hotels tool to find hotels first.`
     });
@@ -689,7 +708,7 @@ async function getHotelDetails(params: { hotel_id: string }) {
 async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   // Check if hotel exists in session
   if (!session.hotels[params.hotel_id]) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: `Hotel with ID ${params.hotel_id} not found in session. Please use the search-hotels tool to find hotels first.`
     });
@@ -712,7 +731,7 @@ async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   }
 
   if (!room || !rate) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: `Room or rate with ID ${params.rate_id} not found in hotel ${params.hotel_id}.`
     });
@@ -740,7 +759,7 @@ async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   );
 
   if (!scheduleResponse || !scheduleResponse.id) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: "Failed to schedule quote. Please try again later."
     });
@@ -752,7 +771,7 @@ async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   const quoteResult = await pollForQuoteStatus(quoteId);
 
   if (!quoteResult) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "processing",
       message: `Quote is still processing. You can check the status later using quote ID: ${quoteId}`,
       quote_id: quoteId
@@ -786,7 +805,7 @@ async function bookHotel(params: { hotel_id: string; rate_id: string }) {
     };
   }
 
-  return createYamlResponse(productInfo);
+  return createJsonResponse(productInfo);
 }
 
 /**
@@ -810,14 +829,14 @@ async function autocompletePlaces(params: { query: string; language?: string }) 
   );
 
   if (!autocompleteResult) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: "Failed to retrieve place suggestions. Please try again with a different query."
     });
   }
 
   if (!autocompleteResult.predictions || autocompleteResult.predictions.length === 0) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "empty",
       message: "No places found matching your query. Please try a different search term."
     });
@@ -849,7 +868,7 @@ async function autocompletePlaces(params: { query: string; language?: string }) 
     response.message = "Please use the confirm-place tool with the ID of the place you want to select.";
   }
 
-  return createYamlResponse(response);
+  return createJsonResponse(response);
 }
 
 /**
@@ -858,7 +877,7 @@ async function autocompletePlaces(params: { query: string; language?: string }) 
 async function confirmPlace(params: { place_id: string }) {
   // Check if we have place suggestions
   if (session.placeSuggestions.length === 0) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: "No place suggestions available. Please use the autocomplete-place tool first."
     });
@@ -868,7 +887,7 @@ async function confirmPlace(params: { place_id: string }) {
   const selectedPlace = session.placeSuggestions.find((place) => place.place_id === params.place_id);
 
   if (!selectedPlace) {
-    return createYamlResponse({
+    return createJsonResponse({
       status: "error",
       message: `Place with ID ${params.place_id} not found in the suggestions. Please use a valid place ID from the autocomplete results.`
     });
@@ -877,7 +896,7 @@ async function confirmPlace(params: { place_id: string }) {
   // Store the confirmed place
   session.confirmedPlace = selectedPlace;
 
-  return createYamlResponse({
+  return createJsonResponse({
     status: "success",
     place: {
       id: selectedPlace.place_id,
