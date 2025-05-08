@@ -253,6 +253,7 @@ interface PlaceSummaryResponse {
 
 interface BookingQuoteResponse {
   status: string;
+  action: string;
   hotel: string;
   check_in: string;
   check_out: string;
@@ -636,7 +637,7 @@ async function searchHotels(params: {
       latitude: session.confirmedPlace.latitude.toString(),
       longitude: session.confirmedPlace.longitude.toString(),
     },
-    limit: 100,
+    limit: 200,
   };
 
   // Make API request to search for hotels
@@ -784,6 +785,7 @@ async function bookHotel(params: { hotel_id: string; rate_id: string }) {
 
   let productInfo: BookingQuoteResponse = {
     status: "success",
+    action: "N/A",
     hotel: "Unknown hotel",
     check_in: "N/A",
     check_out: "N/A",
@@ -796,6 +798,7 @@ async function bookHotel(params: { hotel_id: string; rate_id: string }) {
     const product = quoteResult.quoted_products[0];
     productInfo = {
       status: "success",
+      action: "Make sure the payment_link should be displayed to user, which allow them to click and pay the booking.",
       hotel: product.hotel_name || "Unknown hotel",
       check_in: product.check_in_date,
       check_out: product.check_out_date,
