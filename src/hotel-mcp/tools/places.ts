@@ -1,9 +1,107 @@
 /**
  * Place-related tools for the hotel MCP server
  */
-import { makeApiRequest, createJsonResponse } from "../utils.js";
+import { makeApiRequest, createJsonResponse, loadFacilitiesData } from "../utils.js";
 import { session } from "../state.js";
 import { PlaceSuggestion, PlaceSummaryResponse } from "../types.js";
+
+const facilitiesData = loadFacilitiesData();
+
+/**
+ * Create a new session and normalize place for hotel search
+ */
+export async function createSession(params: {
+  place: string;
+  raw_request?: string;
+  language?: string;
+}) {
+  // Reset session data to start fresh
+  session.hotels = {};
+  session.placeSuggestions = [];
+  session.confirmedPlace = null;
+  session.language = params.language || "en";
+
+  // Validate place parameter
+  if (!params.place || params.place.trim() === "") {
+    return createJsonResponse({
+      status: "error",
+      message: "Place parameter is required for creating a session."
+    });
+  }
+
+  // Make API request to get place suggestions
+  const request = {
+    "input": params.place,
+    "language": "en",
+  };
+
+  const autocompleteResult = await makeApiRequest<any>(
+    "/api/v1/hotels/places/autocomplete",
+    "POST",
+    request,
+  );
+
+  if (!autocompleteResult) {
+    return createJsonResponse({
+      status: "error",
+      message: "Failed to retrieve place suggestions. Please try again with a different query."
+    });
+  }
+
+  if (!autocompleteResult.predictions || autocompleteResult.predictions.length === 0) {
+    return createJsonResponse({
+      status: "empty",
+      message: "No places found matching your query. Please try a different search term."
+    });
+  }
+
+  // Store place suggestions in session
+  session.placeSuggestions = autocompleteResult.predictions;
+
+  // Format results for response
+  const placeSummaries = autocompleteResult.predictions.map((place: PlaceSuggestion, index: number) => ({
+    id: place.place_id,
+    name: place.structured_formatting?.main_text || place.description,
+    type: place.types || "Unknown",
+    location: place.description || ""
+  }));
+
+  // Automatically select the first place if available
+  if (autocompleteResult.predictions.length > 0) {
+    session.confirmedPlace = autocompleteResult.predictions[0];
+  }
+
+  // Prepare response with helpful information
+  const available_facilities = facilitiesData.map((facility: any) => {
+    // Try to find translation for the current session language
+    const translation = facility.translation?.find(
+      (t: any) => t.lang === session.language
+    );
+    return {
+      id: facility.facility_id,
+      name: translation?.facility || facility.facility
+    };
+  });
+  const response = {
+    status: "success",
+    session_created: true,
+    user_request: params.raw_request || null,
+    selected_place: {
+      id: session.confirmedPlace?.place_id,
+      name: session.confirmedPlace?.structured_formatting?.main_text || session.confirmedPlace?.description,
+      location: session.confirmedPlace?.description
+    },
+    alternative_places: placeSummaries,
+    next_steps: [
+      "Use search-hotels to find hotels in the selected place",
+      "You can specify place_id in search-hotels to use a different place from alternative_places",
+      "You can use the available_facilities list to find the right facilities id to filter hotels by facilities in search-hotels",
+    ],
+    available_facilities: available_facilities,
+  };
+
+  return createJsonResponse(response);
+}
 
 /**
  * Get place suggestions based on user input

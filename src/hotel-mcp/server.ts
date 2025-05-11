@@ -5,19 +5,19 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 // Import tool implementations
-import { autocompletePlaces, confirmPlace } from "./tools/places.js";
+import { createSession } from "./tools/places.js";
 import { searchHotels, getHotelDetails } from "./tools/search.js";
 import { bookHotel } from "./tools/booking.js";
 
-// Import resource handlers
-import { getFacilitiesResource } from "./resources.js";
+// // Import resource handlers
+// import { getFacilitiesResource } from "./resources.js";
 
-// Import utilities
-import { loadFacilitiesData } from "./utils.js";
+// // Import utilities
+// import { loadFacilitiesData } from "./utils.js";
 
 // ========== Server Setup ==========
-// Load facilities data
-const facilitiesData = loadFacilitiesData();
+// // Load facilities data
+// const facilitiesData = loadFacilitiesData();
 
 // Create server instance
 const server = new McpServer({
@@ -34,37 +34,52 @@ const server = new McpServer({
 
 // ========== Register Tools ==========
 /**
- * Get place suggestions based on user input
+ * Create a new session and normalize place for hotel search
  */
 server.tool(
-  "autocomplete-place",
-  "Get place suggestions based on user input",
+  "create-session",
+  "Create a new booking session and normalize place for hotel search",
   {
-    query: z.string().describe("User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')"),
-    language: z.string().optional().describe("The language used by user."),
+    place: z.string().describe("Location where user wants to search for hotels (e.g., 'New York', 'Paris', 'Tokyo')"),
+    raw_request: z.string().optional().describe("Summary of user's requirements in free text"),
+    language: z.string().optional().describe("The language used by user, the language value should follow ISO 639, like en, fr, zh etc."),
   },
-  autocompletePlaces
+  createSession
 );
 
-/**
- * Confirm a place from the suggestions for hotel search
- */
-server.tool(
-  "confirm-place",
-  "Confirm a place from the suggestions for hotel search",
-  {
-    place_id: z.string().describe("ID of the place to confirm from the suggestions"),
-  },
-  confirmPlace
-);
+// /**
+//  * Get place suggestions based on user input
+//  */
+// server.tool(
+//   "autocomplete-place",
+//   "Get place suggestions based on user input",
+//   {
+//     query: z.string().describe("User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')"),
+//     language: z.string().optional().describe("The language used by user."),
+//   },
+//   autocompletePlaces
+// );
+
+// /**
+//  * Confirm a place from the suggestions for hotel search
+//  */
+// server.tool(
+//   "confirm-place",
+//   "Confirm a place from the suggestions for hotel search",
+//   {
+//     place_id: z.string().describe("ID of the place to confirm from the suggestions"),
+//   },
+//   confirmPlace
+// );
 
 /**
  * Search for available hotels
  */
 server.tool(
   "search-hotels",
-  "Search for available hotels based on location, dates, and other criteria. The location is defined by the confirmed place.",
+  "Search for available hotels based on location, dates, and other criteria",
   {
+    place_id: z.string().optional().describe("Optional place ID to override the default selected place"),
     check_in_date: z.string().default("2025-06-25").describe("Check-in date (YYYY-MM-DD)"),
     check_out_date: z.string().default("2025-06-26").describe("Check-out date (YYYY-MM-DD)"),
     adults: z.number().min(1).default(2).describe("Number of adults"),
@@ -101,20 +116,20 @@ server.tool(
   bookHotel
 );
 
-// ========== Register Resources ==========
-/**
- * Register facilities as resources
- * This exposes the facilities.json data as a resource in the MCP server
- */
-server.resource(
-  "Hotel Facilities",
-  "hotel:///facilities",
-  {
-    description: "List of all available hotel facilities with translations",
-    mimeType: "application/json"
-  },
-  getFacilitiesResource
-);
+// // ========== Register Resources ==========
+// /**
+//  * Register facilities as resources
+//  * This exposes the facilities.json data as a resource in the MCP server
+//  */
+// server.resource(
+//   "Hotel Facilities",
+//   "hotel:///facilities",
+//   {
+//     description: "List of all available hotel facilities with translations",
+//     mimeType: "application/json"
+//   },
+//   getFacilitiesResource
+// );
 
 // Export the server instance
 export { server };

@@ -15,12 +15,28 @@ export async function searchHotels(params: {
   adults: number;
   children: number;
   facilities?: number[];
+  place_id?: string; // New optional parameter
 }) {
+  let placeToUse = session.confirmedPlace;
+
+  // If place_id is provided, find and use that place instead
+  if (params.place_id && session.placeSuggestions.length > 0) {
+    const selectedPlace = session.placeSuggestions.find(
+      (place) => place.place_id === params.place_id
+    );
+    
+    if (selectedPlace) {
+      placeToUse = selectedPlace;
+      // Update the confirmed place in session
+      session.confirmedPlace = selectedPlace;
+    }
+  }
+
   // Check if we have a confirmed place
-  if (!session.confirmedPlace) {
+  if (!placeToUse) {
     return createJsonResponse({
       status: "error",
-      message: "No confirmed place available. Please use the autocomplete-place tool first to find and confirm a location."
+      message: "No place available. Please use the create-session tool first to find and confirm a location."
     });
   }
 
@@ -36,8 +52,8 @@ export async function searchHotels(params: {
       },
     ],
     location: {
-      latitude: session.confirmedPlace.latitude.toString(),
-      longitude: session.confirmedPlace.longitude.toString(),
+      latitude: placeToUse.latitude.toString(),
+      longitude: placeToUse.longitude.toString(),
     },
     limit: 200,
   };
@@ -70,7 +86,7 @@ export async function searchHotels(params: {
     session.hotels[hotel.id.toString()] = hotel;
   });
 
-  // Format results for YAML response
+  // Format results for response
   const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToSummaryObject(hotel));
 
   return createJsonResponse({
@@ -78,6 +94,11 @@ export async function searchHotels(params: {
     action: "Don't display the result by text, generate a html page with the hotels and their details to show in Artifact to the user",
     total_hotels: total,
     results_count: hotels.length,
+    selected_place: {
+      id: placeToUse.place_id,
+      name: placeToUse.structured_formatting?.main_text || placeToUse.description,
+      location: placeToUse.description
+    },
     hotels: hotelSummaries,
     message: "Use get-hotel-details tool with the hotel ID to see more information.",
   });

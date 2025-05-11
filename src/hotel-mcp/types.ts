@@ -9,6 +9,7 @@ export interface SessionData {
   hotels: Record<string, Hotel>;
   placeSuggestions: PlaceSuggestion[];
   confirmedPlace: PlaceSuggestion | null;
+  language: string;
 }
 
 export interface Hotel {

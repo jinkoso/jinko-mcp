@@ -10,4 +10,5 @@ export const session: SessionData = {
   hotels: {},
   placeSuggestions: [],
   confirmedPlace: null,
+  language: "en",
 };
