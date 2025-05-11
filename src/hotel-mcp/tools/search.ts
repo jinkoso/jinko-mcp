@@ -1,0 +1,106 @@
+/**
+ * Hotel search tools for the hotel MCP server
+ */
+import { makeApiRequest, createJsonResponse } from "../utils.js";
+import { session } from "../state.js";
+import { formatHotelToSummaryObject, formatHotelToDetailObject } from "../formatters.js";
+import { Hotel } from "../types.js";
+
+/**
+ * Search for available hotels based on criteria
+ */
+export async function searchHotels(params: {
+  check_in_date: string;
+  check_out_date: string;
+  adults: number;
+  children: number;
+  facilities?: number[];
+}) {
+  // Check if we have a confirmed place
+  if (!session.confirmedPlace) {
+    return createJsonResponse({
+      status: "error",
+      message: "No confirmed place available. Please use the autocomplete-place tool first to find and confirm a location."
+    });
+  }
+
+  // Prepare request body for hotel availability API
+  const requestBody = {
+    check_in_date: params.check_in_date,
+    check_out_date: params.check_out_date,
+    guests: [
+      {
+        adults: params.adults,
+        children: [],
+        infant: 0,
+      },
+    ],
+    location: {
+      latitude: session.confirmedPlace.latitude.toString(),
+      longitude: session.confirmedPlace.longitude.toString(),
+    },
+    limit: 200,
+  };
+
+  // Make API request to search for hotels
+  const availabilityResult = await makeApiRequest<any>(
+    "/api/v1/hotels/availability",
+    "POST",
+    requestBody
+  );
+
+  if (!availabilityResult) {
+    return createJsonResponse({
+      status: "error",
+      message: "Failed to retrieve hotel availability data. Please try again later."
+    });
+  }
+
+  const { hotels = [], total = 0 } = availabilityResult;
+
+  if (hotels.length === 0) {
+    return createJsonResponse({
+      status: "empty",
+      message: "No hotels found matching your criteria. Please try different search parameters."
+    });
+  }
+
+  // Store hotels in session for later retrieval
+  hotels.forEach((hotel: Hotel) => {
+    session.hotels[hotel.id.toString()] = hotel;
+  });
+
+  // Format results for YAML response
+  const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToSummaryObject(hotel));
+
+  return createJsonResponse({
+    status: "success",
+    action: "Don't display the result by text, generate a html page with the hotels and their details to show in Artifact to the user",
+    total_hotels: total,
+    results_count: hotels.length,
+    hotels: hotelSummaries,
+    message: "Use get-hotel-details tool with the hotel ID to see more information.",
+  });
+}
+
+/**
+ * Get detailed information about a specific hotel
+ */
+export async function getHotelDetails(params: { hotel_id: string }) {
+  // Check if hotel exists in session
+  if (session.hotels[params.hotel_id]) {
+    const hotel = session.hotels[params.hotel_id];
+    const hotelDetail = formatHotelToDetailObject(hotel);
+
+    return createJsonResponse({
+      status: "success",
+      action: "Don't display the result by text, generate a html page with the hotel details to show in Artifact to the user",
+      hotel: hotelDetail,
+    });
+  } else {
+    return createJsonResponse({
+      status: "error",
+      message: `Hotel with ID ${params.hotel_id} not found in session. Please use the search-hotels tool to find hotels first.`
+    });
+  }
+}
