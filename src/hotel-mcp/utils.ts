@@ -4,6 +4,7 @@
 import fs from "fs";
 import yaml from "js-yaml";
 import { API_BASE_URL, FACILITIES_PATH, MAX_QUOTE_POLL_ATTEMPTS, QUOTE_POLL_INTERVAL_MS } from "./config.js";
+import { session } from "./state.js";
 
 /**
  * Load facilities data from JSON file
@@ -36,10 +37,27 @@ export async function makeApiRequest<T>(
   body?: any
 ): Promise<T | null> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const headers = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
   };
+  
+  // Add context information to headers if available in session
+  if (session.conversation_id) {
+    headers["X-Conversation-ID"] = session.conversation_id;
+  }
+  if (session.market) {
+    headers["X-Market"] = session.market;
+  }
+  if (session.language) {
+    headers["X-Language"] = session.language;
+  }
+  if (session.currency) {
+    headers["X-Currency"] = session.currency;
+  }
+  if (session.country_code) {
+    headers["X-Country-Code"] = session.country_code;
+  }
 
   try {
     const options: RequestInit = {

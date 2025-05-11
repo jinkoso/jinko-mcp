@@ -11,4 +11,9 @@ export const session: SessionData = {
   placeSuggestions: [],
   confirmedPlace: null,
   language: "en",
+  conversation_id: "",
+  user_ip_address: "127.0.0.1",
+  market: "fr",
+  currency: "EUR",
+  country_code: "fr",
 };

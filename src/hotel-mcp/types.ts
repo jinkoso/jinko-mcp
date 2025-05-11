@@ -10,6 +10,11 @@ export interface SessionData {
   placeSuggestions: PlaceSuggestion[];
   confirmedPlace: PlaceSuggestion | null;
   language: string;
+  conversation_id: string;
+  user_ip_address: string;
+  market: string;
+  currency: string;
+  country_code: string;
 }
 
 export interface Hotel {

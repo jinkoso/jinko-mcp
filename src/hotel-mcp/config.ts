@@ -22,3 +22,18 @@ export const MAX_QUOTE_POLL_ATTEMPTS = 30;
  * Interval between quote status poll attempts in milliseconds
  */
 export const QUOTE_POLL_INTERVAL_MS = 2000;
+
+/**
+ * Default market for the MCP server
+ */
+export const DEFAULT_MARKET = "fr";
+
+/**
+ * Default currency for the MCP server
+ */
+export const DEFAULT_CURRENCY = "EUR";
+
+/**
+ * Default country code for the MCP server
+ */
+export const DEFAULT_COUNTRY_CODE = "fr";

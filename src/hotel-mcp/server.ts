@@ -43,6 +43,8 @@ server.tool(
     place: z.string().describe("Location where user wants to search for hotels (e.g., 'New York', 'Paris', 'Tokyo')"),
     raw_request: z.string().optional().describe("Summary of user's requirements in free text"),
     language: z.string().optional().describe("The language used by user, the language value should follow ISO 639, like en, fr, zh etc."),
+    currency: z.string().optional().describe("Currency code (e.g., 'EUR', 'USD')"),
+    country_code: z.string().optional().describe("Country code (e.g., 'fr', 'us')"),
   },
   createSession
 );

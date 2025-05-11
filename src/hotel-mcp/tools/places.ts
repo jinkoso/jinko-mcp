@@ -4,6 +4,8 @@
 import { makeApiRequest, createJsonResponse, loadFacilitiesData } from "../utils.js";
 import { session } from "../state.js";
 import { PlaceSuggestion, PlaceSummaryResponse } from "../types.js";
+import { v4 as uuidv4 } from 'uuid';
+import { DEFAULT_MARKET, DEFAULT_CURRENCY, DEFAULT_COUNTRY_CODE } from "../config.js";
 
 const facilitiesData = loadFacilitiesData();
 
@@ -14,12 +16,23 @@ export async function createSession(params: {
   place: string;
   raw_request?: string;
   language?: string;
+  currency?: string;
+  country_code?: string;
 }) {
   // Reset session data to start fresh
   session.hotels = {};
   session.placeSuggestions = [];
   session.confirmedPlace = null;
   session.language = params.language || "en";
+  
+  // Generate a UUID for the conversation_id
+  session.conversation_id = uuidv4();
+  
+  // Set context information from config and params
+  session.user_ip_address = "127.0.0.1"; // Will be detected automatically by backend
+  session.market = DEFAULT_MARKET;
+  session.currency = params.currency || DEFAULT_CURRENCY;
+  session.country_code = params.country_code || DEFAULT_COUNTRY_CODE;
 
   // Validate place parameter
   if (!params.place || params.place.trim() === "") {
@@ -98,6 +111,14 @@ export async function createSession(params: {
       "You can use the available_facilities list to find the right facilities id to filter hotels by facilities in search-hotels",
     ],
     available_facilities: available_facilities,
+    context: {
+      conversation_id: session.conversation_id,
+      user_ip_address: session.user_ip_address,
+      market: session.market,
+      language: session.language,
+      currency: session.currency,
+      country_code: session.country_code,
+    }
   };
 
   return createJsonResponse(response);
