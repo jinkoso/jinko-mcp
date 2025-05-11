@@ -3,11 +3,10 @@
  */
 import { makeApiRequest, createJsonResponse, loadFacilitiesData } from "../utils.js";
 import { session } from "../state.js";
+import { facilities } from "../const.js";
 import { PlaceSuggestion, PlaceSummaryResponse } from "../types.js";
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MARKET, DEFAULT_CURRENCY, DEFAULT_COUNTRY_CODE } from "../config.js";
-
-const facilitiesData = loadFacilitiesData();
 
 /**
  * Create a new session and normalize place for hotel search
@@ -85,7 +84,7 @@ export async function createSession(params: {
   }
 
   // Prepare response with helpful information
-  const available_facilities = facilitiesData.map((facility: any) => {
+  const available_facilities = facilities.map((facility: any) => {
     // Try to find translation for the current session language
     const translation = facility.translation?.find(
       (t: any) => t.lang === session.language
