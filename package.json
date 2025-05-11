@@ -1,6 +1,6 @@
 {
   "name": "jinko-mcp-dev",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "description": "MCP server for Jinko Travel BFF",
   "type": "module",
   "main": "build/index.js",
@@ -39,6 +39,7 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "js-yaml": "^4.1.0",
+    "uuid": "^11.1.0",
     "zod": "^3.24.4"
   },
   "devDependencies": {
@@ -46,6 +47,7 @@
     "@types/express": "^5.0.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.15.12",
+    "@types/uuid": "^10.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
