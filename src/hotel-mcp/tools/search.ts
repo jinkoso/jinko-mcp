@@ -55,6 +55,7 @@ export async function searchHotels(params: {
       latitude: placeToUse.latitude.toString(),
       longitude: placeToUse.longitude.toString(),
     },
+    facility_ids: params.facilities ? params.facilities : [],
     limit: 200,
   };
 
