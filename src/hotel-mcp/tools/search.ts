@@ -47,7 +47,7 @@ export async function searchHotels(params: {
     guests: [
       {
         adults: params.adults,
-        children: [],
+        children: Array(params.children).fill(8),
         infant: 0,
       },
     ],
@@ -55,7 +55,8 @@ export async function searchHotels(params: {
       latitude: placeToUse.latitude.toString(),
       longitude: placeToUse.longitude.toString(),
     },
-    limit: 200,
+    facility_ids: params.facilities ? params.facilities : [],
+    limit: 50,
   };
 
   // Make API request to search for hotels
@@ -91,7 +92,6 @@ export async function searchHotels(params: {
 
   return createJsonResponse({
     status: "success",
-    action: "Don't display the result by text, generate a html page with the hotels and their details to show in Artifact to the user",
     total_hotels: total,
     results_count: hotels.length,
     selected_place: {
@@ -100,7 +100,7 @@ export async function searchHotels(params: {
       location: placeToUse.description
     },
     hotels: hotelSummaries,
-    message: "Use get-hotel-details tool with the hotel ID to see more information.",
+    message: "Show all the hotels summary to user, including the lowest price and the hotel name and locations, try to give the user a good overview of the hotels, and make the recommendations according to user's preferences.",
   });
 }
 
