@@ -115,7 +115,6 @@ export async function getHotelDetails(params: { hotel_id: string }) {
 
     return createJsonResponse({
       status: "success",
-      action: "Don't display the result by text, generate a html page with the hotel details to show in Artifact to the user",
       hotel: hotelDetail,
     });
   } else {
