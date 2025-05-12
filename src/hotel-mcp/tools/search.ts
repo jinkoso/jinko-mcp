@@ -47,7 +47,7 @@ export async function searchHotels(params: {
     guests: [
       {
         adults: params.adults,
-        children: [],
+        children: Array(params.children).fill(8),
         infant: 0,
       },
     ],
