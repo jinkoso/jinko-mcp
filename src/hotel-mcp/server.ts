@@ -98,7 +98,7 @@ server.tool(
  */
 server.tool(
   "get-hotel-details",
-  "Get detailed information about a specific hotel by ID, which are found by search-hotel method.",
+  "Get detailed information about a specific hotel by ID, which are found by search-hotel method. This tools can be used to get more rates of a hotel that user is interested in.",
   {
     hotel_id: z.string().describe("ID of the hotel to get details for"),
   },
