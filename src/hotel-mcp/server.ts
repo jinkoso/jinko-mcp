@@ -79,7 +79,7 @@ server.tool(
  */
 server.tool(
   "search-hotels",
-  "Search for available hotels based on location, dates, and other criteria",
+  "Search for available hotels based on location, dates, and other criteria, returning a list of hotels with the details, such as the lowest price.",
   {
     place_id: z.string().optional().describe("Optional place ID to override the default selected place"),
     check_in_date: z.string().default("2025-06-25").describe("Check-in date (YYYY-MM-DD)"),
