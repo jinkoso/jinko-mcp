@@ -4,15 +4,21 @@ This repository contains a Machine Conversation Protocol (MCP) server for hotel 
 
 ## Features
 
-1. **Place Autocomplete**: Get place suggestions based on user input
-2. **Place Confirmation**: Confirm a place from the suggestions for hotel search
-3. **Search Hotels**: Search for available hotels based on location, dates, and other criteria
-4. **Get Hotel Details**: Get detailed information about a specific hotel by ID
-5. **Book Hotel**: Book a hotel by creating a quote and returning a payment link
+1. **Session Creation**: Create a new booking session with location normalization
+2. **Search Hotels**: Search for available hotels based on location, dates, and other criteria
+3. **Get Hotel Details**: Get detailed information about a specific hotel by ID
+4. **Book Hotel**: Book a hotel by creating a quote and returning a payment link
 
 ## Session Management
 
-The server maintains a session to store hotel search results, allowing for efficient retrieval of hotel details without making additional API calls.
+The server maintains a session to store hotel search results, location information, and user preferences. This allows for efficient retrieval of hotel details without making additional API calls. The session includes:
+
+- Conversation ID for tracking
+- User language preference
+- Currency and country code settings
+- Confirmed place for hotel searches
+- Alternative place suggestions
+- Hotel search results cache
 
 ## Installation
 
@@ -46,63 +52,51 @@ The MCP server uses stdio transport, which means it can be used directly with MC
 
 ## Tools
 
-### 1. autocomplete-place
+### 1. create-session
 
-Get place suggestions based on user input.
-
-**Parameters:**
-- `query`: User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')
-
-This tool returns a list of place suggestions matching the user's query. If only one place is found, it's automatically confirmed. If multiple places are found, the user needs to confirm their choice using the confirm-place tool.
-
-### 2. confirm-place
-
-Confirm a place from the suggestions for hotel search.
+Create a new booking session and normalize place for hotel search.
 
 **Parameters:**
-- `place_id`: ID of the place to confirm from the suggestions
+- `place`: Location where user wants to search for hotels (e.g., 'New York', 'Paris', 'Tokyo')
+- `raw_request` (optional): Summary of user's requirements in free text
+- `language` (optional): The language used by user, following ISO 639 (e.g., 'en', 'fr', 'zh')
+- `currency` (optional): Currency code (e.g., 'EUR', 'USD')
+- `country_code` (optional): Country code (e.g., 'fr', 'us')
 
-This tool confirms a place from the suggestions returned by the autocomplete-place tool. The confirmed place will be used for hotel searches.
+This tool creates a new session with a unique conversation ID and normalizes the place input for hotel searches. It returns the selected place, alternative place suggestions, and available facilities for filtering hotels.
 
-### 3. search-hotels
+### 2. search-hotels
 
 Search for available hotels based on location, dates, and other criteria.
 
 **Parameters:**
-- `use_confirmed_place` (optional): Whether to use the confirmed place from autocomplete (default: false)
-- `location` (optional): Center point for proximity search
-  - `latitude`: Latitude coordinate
-  - `longitude`: Longitude coordinate
-- `radius_km` (optional): Search radius in kilometers
-- `city` (optional): City name to search in
-- `country` (optional): Country code (e.g., US, FR)
-- `check_in_date`: Check-in date (YYYY-MM-DD)
-- `check_out_date`: Check-out date (YYYY-MM-DD)
-- `adults`: Number of adults (default: 2)
-- `children`: Number of children (default: 0)
-- `min_ranking` (optional): Minimum hotel ranking (1-5 stars)
-- `tags` (optional): Tags to filter hotels by
-- `facilities` (optional): Facility IDs to filter hotels by
+- `place_id` (optional): Optional place ID to override the default selected place
+- `check_in_date`: Check-in date (YYYY-MM-DD), default: '2025-06-25'
+- `check_out_date`: Check-out date (YYYY-MM-DD), default: '2025-06-26'
+- `adults`: Number of adults, default: 2
+- `children`: Number of children, default: 0
+- `facilities` (optional): Facility IDs to filter hotels by, the IDs can be inferred with facilities resource
 
-When `use_confirmed_place` is set to true, the tool will use the place confirmed by the confirm-place tool for the search.
+The tool uses the place selected during session creation by default, but you can override it by providing a specific place_id from the alternative places.
 
-### 4. get-hotel-details
+### 3. get-hotel-details
 
 Get detailed information about a specific hotel by ID.
 
 **Parameters:**
 - `hotel_id`: ID of the hotel to get details for
 
-### 5. book-hotel
+This tool retrieves detailed information about a hotel found in the search results, including rooms, amenities, and policies.
+
+### 4. book-hotel
 
 Book a hotel by creating a quote and returning a payment link.
 
 **Parameters:**
 - `hotel_id`: ID of the hotel to book
-- `provider_id`: ID of the provider
-- `check_in_date`: Check-in date (YYYY-MM-DD)
-- `check_out_date`: Check-out date (YYYY-MM-DD)
-- `opaque_rate_data`: Opaque rate data from availability response
+- `rate_id`: ID of the room to book
+
+This tool creates a booking quote for the specified hotel and room, and returns a payment link for the user to complete the booking.
 
 ## API Endpoints
 
@@ -116,36 +110,23 @@ The server uses the following API endpoints from the Jinko Travel BFF:
 
 ## Facilities Data
 
-The server uses the facilities data from `facilities.json` to provide information about hotel facilities. This data is exposed as a resource in the MCP server, allowing LLMs to access it directly.
+The server includes built-in facilities data to provide information about hotel amenities. This data is now directly embedded in the codebase as a constant in `const.ts`, making it more efficient and eliminating the need for external file loading.
 
-### Available Resources
+The facilities data includes translations in multiple languages:
+- English (en)
+- Spanish (es)
+- Italian (it)
+- Hebrew (he)
+- Arabic (ar)
+- German (de)
 
-- `hotel:///facilities` - List of all available hotel facilities with translations
+Each facility includes:
+- `facility_id`: Unique identifier for the facility
+- `facility`: Name of the facility in English
+- `sort`: Sort order for display
+- `translation`: Array of translations in different languages
 
-This resource can be accessed using the MCP resources/read method.
-
-### HTTP Server for Facilities
-
-For testing and development purposes, you can also run a simple HTTP server to access the facilities data:
-
-```bash
-# Run the HTTP server
-node run-facilities-http.js
-```
-
-#### Available Endpoints
-
-- `GET /facilities` - Returns a list of all available hotel facilities with translations
-- `GET /facilities/{facility_id}` - Returns details of a specific hotel facility by ID
-- `GET /facilities/language/{lang}` - Returns all facilities translated to a specific language
-
-#### Example Usage
-
-- http://localhost:59106/facilities
-- http://localhost:59106/facilities/47
-- http://localhost:59106/facilities/language/en
-- http://localhost:59106/facilities/language/es
-- http://localhost:59106/facilities/language/de
+When creating a session, the available facilities are returned as part of the response, allowing LLMs to use the appropriate facility IDs when filtering hotel searches.
 
 ## Publishing to npm
 
@@ -156,7 +137,7 @@ To publish this package to npm, follow these steps:
    npm login
    ```
 
-2. Update the version number in package.json if needed:
+2. Update the version number in package.json if needed (current version is 0.0.5):
    ```bash
    npm version patch  # or minor or major
    ```
@@ -172,3 +153,14 @@ To publish this package to npm, follow these steps:
    ```
 
 After publishing, users can install and run the package using npm or npx as described in the Installation section.
+
+## Configuration
+
+The server uses the following default configuration (defined in `config.ts`):
+
+- API Base URL: `https://api.dev.jinkotravel.com`
+- Default Market: `fr`
+- Default Currency: `EUR`
+- Default Country Code: `fr`
+
+These defaults can be overridden when creating a session by providing the appropriate parameters.
