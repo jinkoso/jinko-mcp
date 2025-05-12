@@ -56,7 +56,7 @@ export async function searchHotels(params: {
       longitude: placeToUse.longitude.toString(),
     },
     facility_ids: params.facilities ? params.facilities : [],
-    limit: 200,
+    limit: 50,
   };
 
   // Make API request to search for hotels
