@@ -73,7 +73,7 @@ export async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   const quoteResult = await pollForQuoteStatus(quoteId);
 
     // Format quote information
-  const paymentLink = `https://hotel-demo.lovable.app/checkout/${quoteId}`;
+  const paymentLink = `https://app.jinko.so/checkout/${quoteId}`;
 
   if (!quoteResult) {
     return createJsonResponse({
