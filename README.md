@@ -1,12 +1,14 @@
 # Hotel Booking MCP Server
 
-This repository contains a Machine Conversation Protocol (MCP) server for hotel booking, which allows LLMs to search for hotels, get hotel details, and book hotels through the Jinko Travel BFF API.
+A powerful MCP server that let developers add hotel shopping and booking capabilities within their agents. Access to 2 millions of hotels with live pricing and booking capabilities. Generate incremental revenue starting today.
+
+MCP (Model Context Protocol) is an open protocol that standardizes how applications provide context to LLMs - think of it as a USB-C port for AI applications, connecting models to external data sources and tools.
 
 ## Features
 
 1. **Session Creation**: Create a new booking session with location normalization
-2. **Search Hotels**: Search for available hotels based on location, dates, and other criteria
-3. **Get Hotel Details**: Get detailed information about a specific hotel by ID
+2. **Search Hotels**: Search for available hotels based on location, dates, hotel amenities
+3. **Get Hotel Details**: Get all rooms and rate available for a specific Hotel ID
 4. **Book Hotel**: Book a hotel by creating a quote and returning a payment link
 
 ## Session Management
@@ -20,7 +22,7 @@ The server maintains a session to store hotel search results, location informati
 - Alternative place suggestions
 - Hotel search results cache
 
-## Installation
+## Development
 
 You can install the package globally:
 
@@ -49,6 +51,23 @@ npx jinko-mcp
 ```
 
 The MCP server uses stdio transport, which means it can be used directly with MCP clients that support this transport type.
+
+## Installation
+
+You can install our MCP locally for now. Remote support is coming. For developers that want access to the production environment and earn commission on sales, please contact us via our website https://www.jinko.so/.
+
+```bash
+{
+  "mcpServers": {
+    "jinko-travel": {
+      "command": "npx",
+      "args": [
+        "jinko-mcp-dev@latest"
+      ]
+    }
+  }
+}
+```
 
 ## Tools
 
