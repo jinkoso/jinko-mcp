@@ -1,6 +1,6 @@
 # Hotel Booking MCP Server
 
-A powerful MCP server that let developers add hotel shopping and booking capabilities within their agents. Access to 2 millions of hotels with live pricing and booking capabilities. Generate incremental revenue starting today.
+We are the first MCP server to access to 2 millions of hotels with shopping and booking capabilities. You can integrate our MCP and start to sell within minutes in your agents. The prod version is available on request by requesting it on our website https://www.jinko.so/. Feel free to reach out!
 
 MCP (Model Context Protocol) is an open protocol that standardizes how applications provide context to LLMs - think of it as a USB-C port for AI applications, connecting models to external data sources and tools.
 
