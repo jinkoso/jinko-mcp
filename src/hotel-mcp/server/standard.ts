@@ -4,7 +4,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { getFacilitiesByLanguage } from "../const.js";
+import { getFacilitiesByLanguage } from "../facilities.js";
 import { loadMoreHotels, searchHotels } from "../tools/standard/search.js";
 import { bookHotel } from "../tools/customer/booking.js";
 
@@ -81,6 +81,6 @@ supportedLanguages.forEach(lang => {
   );
 });
 
-export function get_server() {
+export async function get_server() {
   return server;
 }

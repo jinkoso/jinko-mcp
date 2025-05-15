@@ -133,6 +133,6 @@ server.tool(
 //   getFacilitiesResource
 // );
 
-export function get_server() {
+export async function get_server() {
   return server;
 }
