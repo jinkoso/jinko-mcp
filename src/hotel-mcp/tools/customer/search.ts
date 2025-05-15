@@ -1,10 +1,10 @@
 /**
  * Hotel search tools for the hotel MCP server
  */
-import { makeApiRequest, createJsonResponse } from "../utils.js";
-import { session } from "../state.js";
-import { formatHotelToSummaryObject, formatHotelToDetailObject } from "../formatters.js";
-import { Hotel } from "../types.js";
+import { makeApiRequest, createJsonResponse } from "../../utils.js";
+import { session } from "../../state.js";
+import { formatHotelToSummaryObject, formatHotelToDetailObject } from "../../formatters.js";
+import { Hotel } from "../../types.js";
 
 /**
  * Search for available hotels based on criteria

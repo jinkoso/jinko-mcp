@@ -1,8 +1,8 @@
 /**
  * Hotel booking tools for the hotel MCP server
  */
-import { makeApiRequest, createJsonResponse, pollForQuoteStatus } from "../utils.js";
-import { session } from "../state.js";
+import { makeApiRequest, createJsonResponse, pollForQuoteStatus } from "../../utils.js";
+import { session } from "../../state.js";
 
 /**
  * Book a hotel by creating a quote and returning payment link

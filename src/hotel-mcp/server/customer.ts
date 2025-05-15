@@ -5,9 +5,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 // Import tool implementations
-import { createSession } from "./tools/places.js";
-import { searchHotels, getHotelDetails } from "./tools/search.js";
-import { bookHotel } from "./tools/booking.js";
+import { createSession } from "../tools/customer/places.js";
+import { searchHotels, getHotelDetails } from "../tools/customer/search.js";
+import { bookHotel } from "../tools/customer/booking.js";
 
 // // Import resource handlers
 // import { getFacilitiesResource } from "./resources.js";
@@ -133,5 +133,6 @@ server.tool(
 //   getFacilitiesResource
 // );
 
-// Export the server instance
-export { server };
+export function get_server() {
+  return server;
+}
