@@ -6,7 +6,8 @@ import { z } from "zod";
 
 import { getFacilitiesByLanguage } from "../facilities.js";
 import { loadMoreHotels, searchHotels } from "../tools/standard/search.js";
-import { bookHotel } from "../tools/customer/booking.js";
+import { bookHotel } from "../tools/standard/booking.js";
+import { autocompletePlaces } from "../tools/standard/places.js";
 
 // Create server instance
 const server = new McpServer({
@@ -22,13 +23,30 @@ const server = new McpServer({
 });
 
 // ========== Register Tools ==========
+
+/**
+ * Find normalized place by user's input
+ */
+server.tool(
+  "find-place",
+  `If there isn't coordinate information, this tools can be used to 
+find normalized place by user's input. The input can be a city name, hotel name, or other location names.
+The result will be a list of places with their details and coordinates.
+`,
+{
+  query: z.string().describe("User's input for place search"),
+  language: z.string().optional().default("en").describe("Language for the place search"),
+},
+autocompletePlaces
+);
+
 /**
  * Search for available hotels
  */
 server.tool(
   "search-hotels",
   `Search for available hotels based on latitude, longitude, dates, and other criteria,
-returning a list of hotels with the details, such as the lowest rate.
+returning a list of hotels with the details and all the available rooms and rates.
 More hotels can be loaded with the next page token and load-more-hotels tool.
 `,
   {
@@ -47,7 +65,10 @@ More hotels can be loaded with the next page token and load-more-hotels tool.
 
 server.tool(
   "load-more-hotels",
-  "Load more hotels based on the next page token got from the previous search.",
+  `Load more hotels based on the next page token got from previous query.
+returning a list of hotels with the details and all the available rooms and rates.
+More hotels can be loaded with the next page token and load-more-hotels tool.
+`,
   {
     next_page_token: z.string().describe("Next page token to load more hotels"),
   },
@@ -57,11 +78,13 @@ server.tool(
 server.tool(
   "book-hotel",
   `Book a hotel with chosen hotel's ID and chosen rate's id.
-  A checkout link will be returned to the user, which should be opened in a browser.
+Before make the booking, all the rate of the chosen hotel should be present to the user,
+and the user should choose one of them.
+A checkout link will be returned to the user, which should be opened in a browser.
 `,
   {
     hotel_id: z.string().describe("ID of the hotel to book"),
-    rate_id: z.string().describe("ID of the room to book"),
+    rate_id: z.string().describe("ID of the rate to book"),
   },
   bookHotel,
 );
