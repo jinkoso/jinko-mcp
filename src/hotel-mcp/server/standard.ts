@@ -5,7 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { getFacilitiesByLanguage } from "../facilities.js";
-import { loadMoreHotels, searchHotels } from "../tools/standard/search.js";
+import { getHotelDetails, loadMoreHotels, searchHotels } from "../tools/standard/search.js";
 import { bookHotel } from "../tools/standard/booking.js";
 import { autocompletePlaces } from "../tools/standard/places.js";
 
@@ -70,10 +70,23 @@ returning a list of hotels with the details and all the available rooms and rate
 More hotels can be loaded with the next page token and load-more-hotels tool.
 `,
   {
-    next_page_token: z.string().describe("Next page token to load more hotels"),
+    session_id: z.string().describe("Next page token to load more hotels"),
   },
   loadMoreHotels
 )
+
+/**
+ * Get detailed information about a specific hotel by ID
+ */
+server.tool(
+  "get-hotel-details",
+  "Get detailed information about a specific hotel by ID, which are found by search-hotel method. This tools can be used to get more rates of a hotel that user is interested in.",
+  {
+    session_id: z.string().describe("The id of search session"),
+    hotel_id: z.string().describe("ID of the hotel to get details for"),
+  },
+  getHotelDetails
+);
 
 server.tool(
   "book-hotel",

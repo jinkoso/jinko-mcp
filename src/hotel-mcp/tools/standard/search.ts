@@ -4,7 +4,7 @@
 import { makeApiRequest, createJsonResponse } from "../../utils.js";
 import { session } from "../../state.js";
 import { Hotel } from "../../types.js";
-import { formatHotelToDetailObject } from "../../formatters.js";
+import { formatHotelToDetailObject, formatHotelToSummaryObject } from "../../formatters.js";
 
 /**
  * Search for available hotels based on criteria
@@ -50,7 +50,7 @@ export async function searchHotels(params: {
     });
   }
 
-  const { hotels = [], total = 0, next_page_token=null } = availabilityResult;
+  const { session_id=null, has_more=false, hotels = [], total = 0 } = availabilityResult;
 
   if (hotels.length === 0) {
     return createJsonResponse({
@@ -65,24 +65,32 @@ export async function searchHotels(params: {
   });
 
   // Format results for response
-  const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToDetailObject(hotel));
+  const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToSummaryObject(hotel));
+
+  var message = `Got ${hotels.length} available hotels by search, please make the recommendation according to user's query, especially according to user's query.`;
+  if (has_more) {
+    message = message + "If user need more or you think need more hotel to make the recommendation, you can use the load more tools to retrieve more hotel from the server."
+  } else {
+    message = message + "No more hotel can be retrieve from the server, recommand some hotels from existing hotel list and help the user to change the search query."
+  }
 
   return createJsonResponse({
     status: "success",
     total_hotels: total,
     hotels: hotelSummaries,
-    next_page_token: next_page_token,
+    session_id: session_id,
+    message: message,
   });
 }
 
 export async function loadMoreHotels(params: {
-  next_page_token: string;
+  session_id: string;
 }) {
   // Make API request to load more hotels
   const availabilityResult = await makeApiRequest<any>(
     "/api/v1/hotels/availability/load_more",
     "POST",
-    { next_page_token: params.next_page_token }
+    { session_id: params.session_id }
   );
 
   if (!availabilityResult) {
@@ -92,7 +100,7 @@ export async function loadMoreHotels(params: {
     });
   }
 
-  const { hotels = [], total = 0, next_page_token=null } = availabilityResult;
+  const { session_id=null, has_more=false, hotels = [], total = 0 } = availabilityResult;
 
   if (hotels.length === 0) {
     return createJsonResponse({
@@ -107,12 +115,42 @@ export async function loadMoreHotels(params: {
   });
 
   // Format results for response
-  const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToDetailObject(hotel));
+  const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToSummaryObject(hotel));
+
+   var message = `Got ${hotels.length} additional available hotels by load more, please make the recommendation according to user's query, especially according to user's query.`;
+  if (has_more) {
+    message = message + "If user need more or you think need more hotel to make the recommendation, you can use the load more tools to retrieve more hotel from the server."
+  } else {
+    message = message + "No more hotel can be retrieve from the server, recommand some hotels from existing hotel list and help the user to change the search query."
+  }
 
   return createJsonResponse({
     status: "success",
     total_hotels: total,
     hotels: hotelSummaries,
-    next_page_token: next_page_token,
+    session_id: session_id,
+    message: message,
+  });
+}
+
+/**
+ * Get detailed information about a specific hotel
+ */
+export async function getHotelDetails(params: { session_id: string, hotel_id: string }) {
+  // Make API request to load more hotels
+  const hotelAvailability = await makeApiRequest<any>(
+    `/api/v1/hotels/availability/${params.session_id}/${params.hotel_id}`,
+    "GET",
+  );
+
+  const hotelDetail = formatHotelToDetailObject(hotelAvailability);
+
+  const message = "In this hotel detail response, the user can find all the information and all the available rate."
+
+  return createJsonResponse({
+    status: "success",
+    hotel: hotelDetail,
+    session_id: params.session_id,
+    message: message,
   });
 }
