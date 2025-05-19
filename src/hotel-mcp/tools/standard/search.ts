@@ -67,11 +67,11 @@ export async function searchHotels(params: {
   // Format results for response
   const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToSummaryObject(hotel));
 
-  var message = `Got ${hotels.length} available hotels by search, please make the recommendation according to user's query, especially according to user's query.`;
+  var message = `Found ${hotels.length} available hotels matching the search criteria.`;
   if (has_more) {
-    message = message + "If user need more or you think need more hotel to make the recommendation, you can use the load more tools to retrieve more hotel from the server."
+    message = message + " Additional hotels are available. If the user needs more options or if the current results don't meet their preferences, use the load-more-hotels tool with the provided session_id to retrieve more options."
   } else {
-    message = message + "No more hotel can be retrieve from the server, recommand some hotels from existing hotel list and help the user to change the search query."
+    message = message + " These are all available hotels matching the search criteria. If the user isn't satisfied with these options, consider suggesting modifications to their search parameters (dates, location, facilities, etc.)."
   }
 
   return createJsonResponse({
@@ -117,11 +117,11 @@ export async function loadMoreHotels(params: {
   // Format results for response
   const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToSummaryObject(hotel));
 
-   var message = `Got ${hotels.length} additional available hotels by load more, please make the recommendation according to user's query, especially according to user's query.`;
+  var message = `Retrieved ${hotels.length} additional hotels matching the search criteria.`;
   if (has_more) {
-    message = message + "If user need more or you think need more hotel to make the recommendation, you can use the load more tools to retrieve more hotel from the server."
+    message = message + " More hotels are still available. You can continue to load additional options with the load-more-hotels tool if the current selection doesn't satisfy the user's requirements."
   } else {
-    message = message + "No more hotel can be retrieve from the server, recommand some hotels from existing hotel list and help the user to change the search query."
+    message = message + " You have now retrieved all available hotels matching these search criteria. If the user requires more options, suggest modifying their search parameters such as dates, location, or amenity requirements."
   }
 
   return createJsonResponse({
@@ -145,7 +145,7 @@ export async function getHotelDetails(params: { session_id: string, hotel_id: st
 
   const hotelDetail = formatHotelToDetailObject(hotelAvailability);
 
-  const message = "In this hotel detail response, the user can find all the information and all the available rate."
+  const message = "This response contains comprehensive details about the selected hotel, including all available room types, rate options, amenities, policies, and location information. Present the key details to the user and help them compare different rate options if they're considering booking this hotel."
 
   return createJsonResponse({
     status: "success",

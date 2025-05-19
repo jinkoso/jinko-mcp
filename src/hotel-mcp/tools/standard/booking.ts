@@ -44,7 +44,7 @@ export async function bookHotel(params: { session_id: string, hotel_id: string; 
     if (!quoteResult) {
       return createJsonResponse({
         status: "processing",
-        message: `Quote is still processing. Please check the status and complete your booking using the following payment link.`,
+        message: `Your booking request is being processed. Please inform the user that they can proceed to complete their booking using the payment link provided below. The booking details will be finalized during the payment process.`,
         payment_link: paymentLink,
         quote_id: quoteId
       });
@@ -65,7 +65,7 @@ export async function bookHotel(params: { session_id: string, hotel_id: string; 
       const product = quoteResult.quoted_products[0];
       productInfo = {
         status: "success",
-        action: "Make sure the payment_link should be displayed to user, which allow them to click and pay the booking.",
+        action: "IMPORTANT: Present the payment_link to the user so they can complete their booking by clicking the link and processing payment.",
         hotel: product.hotel_name || "Unknown hotel",
         check_in: product.check_in_date,
         check_out: product.check_out_date,

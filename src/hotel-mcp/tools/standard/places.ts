@@ -51,7 +51,7 @@ export async function autocompletePlaces(params: { query: string; language?: str
   const response: PlaceSummaryResponse = {
     places: placeSummaries,
     count: autocompleteResult.predictions.length,
-    message: ""
+    message: "Found matching locations based on your search. Each result includes location coordinates that can be used with the search-hotels tool. If multiple locations match your query, please help the user select the most appropriate one based on their travel plans."
   };
 
   return createJsonResponse(response);

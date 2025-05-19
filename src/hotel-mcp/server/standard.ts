@@ -29,9 +29,10 @@ const server = new McpServer({
  */
 server.tool(
   "find-place",
-  `If there isn't coordinate information, this tools can be used to 
-find normalized place by user's input. The input can be a city name, hotel name, or other location names.
-The result will be a list of places with their details and coordinates.
+  `Use this tool to convert a user's location query into standardized place information with coordinates.
+This is essential when you need latitude and longitude for hotel searches but only have a text description.
+The tool accepts city names, hotel names, landmarks, or other location identifiers and returns a list of 
+matching places with their details and precise coordinates.
 `,
 {
   query: z.string().describe("User's input for place search"),
@@ -45,9 +46,13 @@ autocompletePlaces
  */
 server.tool(
   "search-hotels",
-  `Search for available hotels based on latitude, longitude, dates, and other criteria,
-returning a list of hotels with the details and all the available rooms and rates.
-More hotels can be loaded with the next page token and load-more-hotels tool.
+  `Search for available hotels based on location coordinates and booking requirements.
+This tool returns a paginated list of hotels with their key details including name, address, 
+star rating, price range, and available room types. Each hotel includes summary information 
+about amenities and available rates.
+
+The results are limited to 50 hotels per request. If more results are available, you can 
+retrieve them using the load-more-hotels tool with the returned session_id.
 `,
   {
     latitude: z.number().describe("Latitude of the location"),
@@ -65,12 +70,15 @@ More hotels can be loaded with the next page token and load-more-hotels tool.
 
 server.tool(
   "load-more-hotels",
-  `Load more hotels based on the next page token got from previous query.
-returning a list of hotels with the details and all the available rooms and rates.
-More hotels can be loaded with the next page token and load-more-hotels tool.
+  `Retrieve additional hotel results from a previous search using the session_id.
+This tool continues pagination from a previous search-hotels request, returning the next 
+batch of hotels with the same format and details as the original search.
+
+The response format matches search-hotels and includes information about whether 
+further pagination is possible.
 `,
   {
-    session_id: z.string().describe("Next page token to load more hotels"),
+    session_id: z.string().describe("Session ID from a previous search-hotels or load-more-hotels response"),
   },
   loadMoreHotels
 )
@@ -80,9 +88,16 @@ More hotels can be loaded with the next page token and load-more-hotels tool.
  */
 server.tool(
   "get-hotel-details",
-  "Get detailed information about a specific hotel by ID, which are found by search-hotel method. This tools can be used to get more rates of a hotel that user is interested in.",
+  `Retrieve comprehensive details about a specific hotel identified by its ID.
+This tool provides more extensive information than what's available in search results,
+including complete descriptions, all available room types, detailed rate information,
+cancellation policies, and full amenity lists.
+
+Use this tool when a user expresses interest in a specific hotel from search results
+to provide them with all available options and complete booking information.
+`,
   {
-    session_id: z.string().describe("The id of search session"),
+    session_id: z.string().describe("The session ID from a previous search"),
     hotel_id: z.string().describe("ID of the hotel to get details for"),
   },
   getHotelDetails
@@ -90,15 +105,20 @@ server.tool(
 
 server.tool(
   "book-hotel",
-  `Book a hotel with chosen hotel's ID and chosen rate's id.
-Before make the booking, all the rate of the chosen hotel should be present to the user,
-and the user should choose one of them.
-A checkout link will be returned to the user, which should be opened in a browser.
+  `Initiate a hotel booking process for a specific hotel and rate option.
+
+IMPORTANT WORKFLOW:
+1. Before calling this tool, you MUST present a specific hotel's all available rate options to the user using get-hotel-details
+2. The user MUST select a specific rate option they want to book
+3. This tool will generate a secure payment link that the user needs to open in their browser to complete the booking
+
+The response includes a payment_link that must be prominently displayed to the user, along with
+booking details such as hotel name, check-in/out dates, and total price.
 `,
   {
-    session_id: z.string().describe("The id of search session"),
+    session_id: z.string().describe("The session ID from a previous search"),
     hotel_id: z.string().describe("ID of the hotel to book"),
-    rate_id: z.string().describe("ID of the rate to book"),
+    rate_id: z.string().describe("ID of the specific rate option the user has selected"),
   },
   bookHotel,
 );
