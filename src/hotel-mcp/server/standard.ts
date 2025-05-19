@@ -96,6 +96,7 @@ and the user should choose one of them.
 A checkout link will be returned to the user, which should be opened in a browser.
 `,
   {
+    session_id: z.string().describe("The id of search session"),
     hotel_id: z.string().describe("ID of the hotel to book"),
     rate_id: z.string().describe("ID of the rate to book"),
   },
