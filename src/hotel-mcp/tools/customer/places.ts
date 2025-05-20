@@ -1,12 +1,12 @@
 /**
  * Place-related tools for the hotel MCP server
  */
-import { makeApiRequest, createJsonResponse, loadFacilitiesData } from "../utils.js";
-import { session } from "../state.js";
-import { facilities } from "../const.js";
-import { PlaceSuggestion, PlaceSummaryResponse } from "../types.js";
+import { makeApiRequest, createYamlResponse, loadFacilitiesData } from "../../utils.js";
+import { session } from "../../state.js";
+import { facilities } from "../../facilities.js";
+import { PlaceSuggestion, PlaceSummaryResponse } from "../../types.js";
 import { v4 as uuidv4 } from 'uuid';
-import { DEFAULT_MARKET, DEFAULT_CURRENCY, DEFAULT_COUNTRY_CODE } from "../config.js";
+import { DEFAULT_MARKET, DEFAULT_CURRENCY, DEFAULT_COUNTRY_CODE } from "../../config.js";
 
 /**
  * Create a new session and normalize place for hotel search
@@ -35,7 +35,7 @@ export async function createSession(params: {
 
   // Validate place parameter
   if (!params.place || params.place.trim() === "") {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "Place parameter is required for creating a session."
     });
@@ -54,14 +54,14 @@ export async function createSession(params: {
   );
 
   if (!autocompleteResult) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "Failed to retrieve place suggestions. Please try again with a different query."
     });
   }
 
   if (!autocompleteResult.predictions || autocompleteResult.predictions.length === 0) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "empty",
       message: "No places found matching your query. Please try a different search term."
     });
@@ -120,7 +120,7 @@ export async function createSession(params: {
     }
   };
 
-  return createJsonResponse(response);
+  return createYamlResponse(response);
 }
 
 /**
@@ -144,14 +144,14 @@ export async function autocompletePlaces(params: { query: string; language?: str
   );
 
   if (!autocompleteResult) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "Failed to retrieve place suggestions. Please try again with a different query."
     });
   }
 
   if (!autocompleteResult.predictions || autocompleteResult.predictions.length === 0) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "empty",
       message: "No places found matching your query. Please try a different search term."
     });
@@ -183,7 +183,7 @@ export async function autocompletePlaces(params: { query: string; language?: str
     response.message = "Please use the confirm-place tool with the ID of the place you want to select.";
   }
 
-  return createJsonResponse(response);
+  return createYamlResponse(response);
 }
 
 /**
@@ -192,7 +192,7 @@ export async function autocompletePlaces(params: { query: string; language?: str
 export async function confirmPlace(params: { place_id: string }) {
   // Check if we have place suggestions
   if (session.placeSuggestions.length === 0) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "No place suggestions available. Please use the autocomplete-place tool first."
     });
@@ -202,7 +202,7 @@ export async function confirmPlace(params: { place_id: string }) {
   const selectedPlace = session.placeSuggestions.find((place: any) => place.place_id === params.place_id);
 
   if (!selectedPlace) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: `Place with ID ${params.place_id} not found in the suggestions. Please use a valid place ID from the autocomplete results.`
     });
@@ -211,7 +211,7 @@ export async function confirmPlace(params: { place_id: string }) {
   // Store the confirmed place
   session.confirmedPlace = selectedPlace;
 
-  return createJsonResponse({
+  return createYamlResponse({
     status: "success",
     place: {
       id: selectedPlace.place_id,

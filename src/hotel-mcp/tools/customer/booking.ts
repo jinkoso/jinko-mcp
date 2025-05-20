@@ -1,8 +1,8 @@
 /**
  * Hotel booking tools for the hotel MCP server
  */
-import { makeApiRequest, createJsonResponse, pollForQuoteStatus } from "../utils.js";
-import { session } from "../state.js";
+import { makeApiRequest, createYamlResponse, pollForQuoteStatus } from "../../utils.js";
+import { session } from "../../state.js";
 
 /**
  * Book a hotel by creating a quote and returning payment link
@@ -10,7 +10,7 @@ import { session } from "../state.js";
 export async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   // Check if hotel exists in session
   if (!session.hotels[params.hotel_id]) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: `Hotel with ID ${params.hotel_id} not found in session. Please use the search-hotels tool to find hotels first.`
     });
@@ -33,7 +33,7 @@ export async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   }
 
   if (!room || !rate) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: `Room or rate with ID ${params.rate_id} not found in hotel ${params.hotel_id}.`
     });
@@ -61,7 +61,7 @@ export async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   );
 
   if (!scheduleResponse || !scheduleResponse.reference) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "Failed to schedule quote. Please try again later."
     });
@@ -76,7 +76,7 @@ export async function bookHotel(params: { hotel_id: string; rate_id: string }) {
   const paymentLink = `https://app.jinko.so/checkout/${quoteId}`;
 
   if (!quoteResult) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "processing",
       message: `Quote is still processing. Please check the status and complete your booking using the following payment link.`,
       payment_link: paymentLink,
@@ -109,5 +109,5 @@ export async function bookHotel(params: { hotel_id: string; rate_id: string }) {
     };
   }
 
-  return createJsonResponse(productInfo);
+  return createYamlResponse(productInfo);
 }

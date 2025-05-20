@@ -7130,3 +7130,70 @@ export const facilities = [
         ]
     }
 ]
+
+
+// Implementation functions
+export async function getFacilitiesResource(uri: URL) {
+  const jsonString = JSON.stringify(facilities);
+  
+  return {
+    contents: [
+      {
+        text: jsonString,
+        uri: uri.toString(),
+        mimeType: "application/json"
+      }
+    ]
+  };
+}
+
+export async function getFacilitiesByLanguage(uri: URL, lang: string) {
+  const languageFacilities = facilities.map(facility => {
+    const translation = facility.translation.find(t => t.lang === lang) || 
+                        facility.translation.find(t => t.lang === 'en');
+    
+    return {
+      facility_id: facility.facility_id,
+      name: translation ? translation.facility : facility.facility,
+    };
+  });
+  
+  return {
+    contents: [
+      {
+        text: JSON.stringify(languageFacilities),
+        uri: uri.toString(),
+        mimeType: "application/json"
+      }
+    ]
+  };
+}
+
+export async function getFacilityByIdAndLanguage(uri: URL) {
+  const pathParts = uri.pathname.split('/');
+  
+  // Extract id and language from URL pattern
+  const facilityId = parseInt(pathParts[1], 10);
+  const lang = pathParts[2];
+  
+  const facility = facilities.find(f => f.facility_id === facilityId);
+  if (!facility) {
+    throw new Error(`Facility not found: ${facilityId}`);
+  }
+  
+  const translation = facility.translation.find(t => t.lang === lang) || 
+                    facility.translation.find(t => t.lang === 'en');
+  
+  return {
+    contents: [
+      {
+        text: JSON.stringify({
+          facility_id: facility.facility_id,
+          name: translation ? translation.facility : facility.facility,
+        }),
+        uri: uri.toString(),
+        mimeType: "application/json"
+      }
+    ]
+  };
+}

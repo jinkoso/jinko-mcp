@@ -1,10 +1,10 @@
 /**
  * Hotel search tools for the hotel MCP server
  */
-import { makeApiRequest, createJsonResponse } from "../utils.js";
-import { session } from "../state.js";
-import { formatHotelToSummaryObject, formatHotelToDetailObject } from "../formatters.js";
-import { Hotel } from "../types.js";
+import { makeApiRequest, createYamlResponse } from "../../utils.js";
+import { session } from "../../state.js";
+import { formatHotelToSummaryObject, formatHotelToDetailObject } from "../../formatters.js";
+import { Hotel } from "../../types.js";
 
 /**
  * Search for available hotels based on criteria
@@ -34,7 +34,7 @@ export async function searchHotels(params: {
 
   // Check if we have a confirmed place
   if (!placeToUse) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "No place available. Please use the create-session tool first to find and confirm a location."
     });
@@ -67,7 +67,7 @@ export async function searchHotels(params: {
   );
 
   if (!availabilityResult) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "Failed to retrieve hotel availability data. Please try again later."
     });
@@ -76,7 +76,7 @@ export async function searchHotels(params: {
   const { hotels = [], total = 0 } = availabilityResult;
 
   if (hotels.length === 0) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "empty",
       message: "No hotels found matching your criteria. Please try different search parameters."
     });
@@ -90,7 +90,7 @@ export async function searchHotels(params: {
   // Format results for response
   const hotelSummaries = hotels.map((hotel: Hotel) => formatHotelToSummaryObject(hotel));
 
-  return createJsonResponse({
+  return createYamlResponse({
     status: "success",
     total_hotels: total,
     results_count: hotels.length,
@@ -113,12 +113,12 @@ export async function getHotelDetails(params: { hotel_id: string }) {
     const hotel = session.hotels[params.hotel_id];
     const hotelDetail = formatHotelToDetailObject(hotel);
 
-    return createJsonResponse({
+    return createYamlResponse({
       status: "success",
       hotel: hotelDetail,
     });
   } else {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: `Hotel with ID ${params.hotel_id} not found in session. Please use the search-hotels tool to find hotels first.`
     });
