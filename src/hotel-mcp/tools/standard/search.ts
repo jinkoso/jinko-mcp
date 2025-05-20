@@ -1,7 +1,7 @@
 /**
  * Hotel search tools for the hotel MCP server
  */
-import { makeApiRequest, createJsonResponse } from "../../utils.js";
+import { makeApiRequest, createYamlResponse } from "../../utils.js";
 import { session } from "../../state.js";
 import { Hotel } from "../../types.js";
 import { formatHotelToDetailObject, formatHotelToSummaryObject } from "../../formatters.js";
@@ -33,7 +33,7 @@ export async function searchHotels(params: {
       longitude: params.longitude.toString(),
     },
     facility_ids: params.facilities ? params.facilities : [],
-    limit: 50,
+    max_results: 100,
   };
 
   // Make API request to search for hotels
@@ -44,7 +44,7 @@ export async function searchHotels(params: {
   );
 
   if (!availabilityResult) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "Failed to retrieve hotel availability data. Please try again later."
     });
@@ -53,7 +53,7 @@ export async function searchHotels(params: {
   const { session_id=null, has_more=false, hotels = [], total = 0 } = availabilityResult;
 
   if (hotels.length === 0) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "empty",
       message: "No hotels found matching your criteria. Please try different search parameters."
     });
@@ -74,7 +74,7 @@ export async function searchHotels(params: {
     message = message + " These are all available hotels matching the search criteria. If the user isn't satisfied with these options, consider suggesting modifications to their search parameters (dates, location, facilities, etc.)."
   }
 
-  return createJsonResponse({
+  return createYamlResponse({
     status: "success",
     total_hotels: total,
     hotels: hotelSummaries,
@@ -94,7 +94,7 @@ export async function loadMoreHotels(params: {
   );
 
   if (!availabilityResult) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "Failed to retrieve hotel availability data. Please try again later."
     });
@@ -103,7 +103,7 @@ export async function loadMoreHotels(params: {
   const { session_id=null, has_more=false, hotels = [], total = 0 } = availabilityResult;
 
   if (hotels.length === 0) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "empty",
       message: "No hotels found matching your criteria. Please try different search parameters."
     });
@@ -124,7 +124,7 @@ export async function loadMoreHotels(params: {
     message = message + " You have now retrieved all available hotels matching these search criteria. If the user requires more options, suggest modifying their search parameters such as dates, location, or amenity requirements."
   }
 
-  return createJsonResponse({
+  return createYamlResponse({
     status: "success",
     total_hotels: total,
     hotels: hotelSummaries,
@@ -147,7 +147,7 @@ export async function getHotelDetails(params: { session_id: string, hotel_id: st
 
   const message = "This response contains comprehensive details about the selected hotel, including all available room types, rate options, amenities, policies, and location information. Present the key details to the user and help them compare different rate options if they're considering booking this hotel."
 
-  return createJsonResponse({
+  return createYamlResponse({
     status: "success",
     hotel: hotelDetail,
     session_id: params.session_id,

@@ -1,7 +1,7 @@
 /**
  * Place-related tools for the hotel MCP server
  */
-import { makeApiRequest, createJsonResponse } from "../../utils.js";
+import { makeApiRequest, createYamlResponse } from "../../utils.js";
 import { PlaceSuggestion, PlaceSummaryResponse } from "../../types.js";
 
 /**
@@ -25,14 +25,14 @@ export async function autocompletePlaces(params: { query: string; language?: str
   );
 
   if (!autocompleteResult) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "error",
       message: "Failed to retrieve place suggestions. Please try again with a different query."
     });
   }
 
   if (!autocompleteResult.predictions || autocompleteResult.predictions.length === 0) {
-    return createJsonResponse({
+    return createYamlResponse({
       status: "empty",
       message: "No places found matching your query. Please try a different search term."
     });
@@ -54,5 +54,5 @@ export async function autocompletePlaces(params: { query: string; language?: str
     message: "Found matching locations based on your search. Each result includes location coordinates that can be used with the search-hotels tool. If multiple locations match your query, please help the user select the most appropriate one based on their travel plans."
   };
 
-  return createJsonResponse(response);
+  return createYamlResponse(response);
 }

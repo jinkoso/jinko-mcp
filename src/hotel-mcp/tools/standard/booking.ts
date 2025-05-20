@@ -1,7 +1,7 @@
 /**
  * Hotel booking tools for the hotel MCP server
  */
-import { createJsonResponse, makeApiRequest, pollForQuoteStatus } from "../../utils.js";
+import { createYamlResponse, makeApiRequest, pollForQuoteStatus } from "../../utils.js";
 
 /**
  * Book a hotel by creating a quote and returning payment link
@@ -27,7 +27,7 @@ export async function bookHotel(params: { session_id: string, hotel_id: string; 
     );
   
     if (!scheduleResponse || !scheduleResponse.reference) {
-      return createJsonResponse({
+      return createYamlResponse({
         status: "error",
         message: "Failed to schedule quote. Please try again later."
       });
@@ -42,7 +42,7 @@ export async function bookHotel(params: { session_id: string, hotel_id: string; 
     const paymentLink = `https://app.jinko.so/checkout/${quoteId}`;
   
     if (!quoteResult) {
-      return createJsonResponse({
+      return createYamlResponse({
         status: "processing",
         message: `Your booking request is being processed. Please inform the user that they can proceed to complete their booking using the payment link provided below. The booking details will be finalized during the payment process.`,
         payment_link: paymentLink,
@@ -75,5 +75,5 @@ export async function bookHotel(params: { session_id: string, hotel_id: string; 
       };
     }
   
-    return createJsonResponse(productInfo);
+    return createYamlResponse(productInfo);
 }

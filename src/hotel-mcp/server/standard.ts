@@ -9,6 +9,7 @@ import { getHotelDetails, loadMoreHotels, searchHotels } from "../tools/standard
 import { bookHotel } from "../tools/standard/booking.js";
 import { autocompletePlaces } from "../tools/standard/places.js";
 
+
 // Create server instance
 const server = new McpServer({
   name: "hotel-booking-mcp",
@@ -121,6 +122,74 @@ booking details such as hotel name, check-in/out dates, and total price.
     rate_id: z.string().describe("ID of the specific rate option the user has selected"),
   },
   bookHotel,
+);
+
+/**
+ * Get a list of hotel facilities in the specified language
+ */
+server.tool(
+  "get-facilities",
+  `IMPORTANT: ALWAYS USE THIS TOOL FIRST when a user mentions ANY specific hotel amenities or requirements.
+
+This tool must be called BEFORE search-hotels whenever the user mentions requirements like:
+- Pet-friendly or traveling with pets/dogs/cats
+- WiFi or internet access
+- Swimming pools
+- Parking (free or paid)
+- Air conditioning or heating
+- Fitness center or gym
+- Restaurant or room service
+- Family rooms
+- Non-smoking rooms
+- Any other specific hotel features
+
+The tool returns facility IDs that MUST be used with the search-hotels tool's facilities parameter
+to properly filter hotels. Without using this tool first, searches will not correctly filter for 
+user-requested amenities.
+
+Example workflow:
+1. User asks for "pet-friendly hotels in Paris"
+2. Call get-facilities to find the facility_id for "Pets allowed"
+3. Use that facility_id in the search-hotels facilities parameter
+`,
+  {
+    language: z.string().default("en").describe("Language code for facility names (en, es, it, he, ar, de)"),
+  },
+  async (params) => {
+    const lang = params.language || "en";
+    // Create a mock URL for the getFacilitiesByLanguage function
+    const uri = new URL(`hotel://facilities/${lang}`);
+    const result = await getFacilitiesByLanguage(uri, lang);
+    
+    // Extract the facilities from the result
+    let facilities = [];
+    try {
+      facilities = JSON.parse(result.contents[0].text);
+    } catch (e) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            status: "error",
+            message: "Failed to parse facilities data"
+          })
+        }]
+      };
+    }
+    
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "success",
+          facilities: facilities,
+          message: `Retrieved ${facilities.length} hotel facilities in ${lang} language. 
+IMPORTANT: You MUST identify the facility_id values that match the user's requirements and include them in the facilities parameter of the search-hotels tool. 
+For example, if the user wants pet-friendly hotels, find the facility_id for "Pets allowed" in this list and include it in your search-hotels call.`
+        })
+      }]
+    };
+  }
 );
 
 // ========== Register Resources ==========
