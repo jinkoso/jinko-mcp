@@ -12,7 +12,7 @@ async function main() {
   try {
     // Create stdio transport
     const transport = new StdioServerTransport();
-    const serverType = process.argv[2] || "customer";
+    const serverType = process.argv[2] || "standard";
     if (serverType !== "customer" && serverType !== "standard") {
       console.error("Invalid server type. Use 'customer' or 'standard'.");
       process.exit(1);
