@@ -27,13 +27,13 @@ The server maintains a session to store hotel search results, location informati
 You can install the package globally:
 
 ```bash
-npm install -g jinko-mcp
+npm install -g jinko-mcp-dev
 ```
 
 Or run it directly with npx:
 
 ```bash
-npx jinko-mcp
+npx jinko-mcp-dev
 ```
 
 ## Running the Server
@@ -47,7 +47,7 @@ npm run start
 ### Using npx (after publishing)
 
 ```bash
-npx jinko-mcp
+npx jinko-mcp-dev
 ```
 
 The MCP server uses stdio transport, which means it can be used directly with MCP clients that support this transport type.
