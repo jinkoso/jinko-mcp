@@ -47,4 +47,6 @@ main().catch((error) => {
   process.exit(1);
 });
 
+// Export the standard server for use in other modules
+const server = get_standard_server();
 export { server };
