@@ -6,21 +6,11 @@ MCP (Model Context Protocol) is an open protocol that standardizes how applicati
 
 ## Features
 
-1. **Session Creation**: Create a new booking session with location normalization
-2. **Search Hotels**: Search for available hotels based on location, dates, hotel amenities
-3. **Get Hotel Details**: Get all rooms and rate available for a specific Hotel ID
+1. **Find Place**: Convert user's location query into standardized place information with coordinates
+2. **Search Hotels**: Search for available hotels based on location coordinates and booking requirements
+3. **Get Hotel Details**: Get comprehensive details about a specific hotel
 4. **Book Hotel**: Book a hotel by creating a quote and returning a payment link
-
-## Session Management
-
-The server maintains a session to store hotel search results, location information, and user preferences. This allows for efficient retrieval of hotel details without making additional API calls. The session includes:
-
-- Conversation ID for tracking
-- User language preference
-- Currency and country code settings
-- Confirmed place for hotel searches
-- Alternative place suggestions
-- Hotel search results cache
+5. **Get Facilities**: Retrieve hotel facilities in different languages for filtering searches
 
 ## Development
 
@@ -71,67 +61,74 @@ You can install our MCP locally for now. Remote support is coming. For developer
 
 ## Tools
 
-### 1. create-session
+### 1. find-place
 
-Create a new booking session and normalize place for hotel search.
+Convert a user's location query into standardized place information with coordinates.
 
 **Parameters:**
-- `place`: Location where user wants to search for hotels (e.g., 'New York', 'Paris', 'Tokyo')
-- `raw_request` (optional): Summary of user's requirements in free text
-- `language` (optional): The language used by user, following ISO 639 (e.g., 'en', 'fr', 'zh')
-- `currency` (optional): Currency code (e.g., 'EUR', 'USD')
-- `country_code` (optional): Country code (e.g., 'fr', 'us')
+- `query`: User's input for place search (e.g., 'New York', 'Paris', 'Tokyo')
+- `language` (optional): Language for the place search, default: 'en'
 
-This tool creates a new session with a unique conversation ID and normalizes the place input for hotel searches. It returns the selected place, alternative place suggestions, and available facilities for filtering hotels.
+This tool is essential when you need latitude and longitude for hotel searches but only have a text description. It accepts city names, hotel names, landmarks, or other location identifiers and returns a list of matching places with their details and precise coordinates.
 
 ### 2. search-hotels
 
-Search for available hotels based on location, dates, and other criteria.
+Search for available hotels based on location coordinates and booking requirements.
 
 **Parameters:**
-- `place_id` (optional): Optional place ID to override the default selected place
+- `latitude`: Latitude of the location
+- `longitude`: Longitude of the location
 - `check_in_date`: Check-in date (YYYY-MM-DD), default: '2025-06-25'
 - `check_out_date`: Check-out date (YYYY-MM-DD), default: '2025-06-26'
 - `adults`: Number of adults, default: 2
 - `children`: Number of children, default: 0
 - `facilities` (optional): Facility IDs to filter hotels by, the IDs can be inferred with facilities resource
 
-The tool uses the place selected during session creation by default, but you can override it by providing a specific place_id from the alternative places.
+This tool returns a paginated list of hotels with their key details including name, address, star rating, price range, and available room types. Each hotel includes summary information about amenities and available rates. The results are limited to 50 hotels per request.
 
-### 3. get-hotel-details
+### 3. load-more-hotels
 
-Get detailed information about a specific hotel by ID.
+Retrieve additional hotel results from a previous search using the session_id.
 
 **Parameters:**
+- `session_id`: Session ID from a previous search-hotels or load-more-hotels response
+
+This tool continues pagination from a previous search-hotels request, returning the next batch of hotels with the same format and details as the original search.
+
+### 4. get-hotel-details
+
+Retrieve comprehensive details about a specific hotel identified by its ID.
+
+**Parameters:**
+- `session_id`: The session ID from a previous search
 - `hotel_id`: ID of the hotel to get details for
 
-This tool retrieves detailed information about a hotel found in the search results, including rooms, amenities, and policies.
+This tool provides more extensive information than what's available in search results, including complete descriptions, all available room types, detailed rate information, cancellation policies, and full amenity lists.
 
-### 4. book-hotel
+### 5. book-hotel
 
-Book a hotel by creating a quote and returning a payment link.
+Initiate a hotel booking process for a specific hotel and rate option.
 
 **Parameters:**
+- `session_id`: The session ID from a previous search
 - `hotel_id`: ID of the hotel to book
-- `rate_id`: ID of the room to book
+- `rate_id`: ID of the specific rate option the user has selected
 
 This tool creates a booking quote for the specified hotel and room, and returns a payment link for the user to complete the booking.
 
-## API Endpoints
+### 6. get-facilities
 
-The server uses the following API endpoints from the Jinko Travel BFF:
+Retrieve a list of hotel facilities in the specified language.
 
-- `/api/v1/hotels/places/autocomplete`: Get place suggestions based on user input
-- `/api/v1/hotels/availability`: Search for available hotels
-- `/api/v1/hotels/{hotel_id}`: Get hotel details
-- `/api/v1/booking/quote/schedule`: Schedule a quote
-- `/api/v1/booking/quote/pull/{quote_id}`: Pull quote status and details
+**Parameters:**
+- `language`: Language code for facility names (en, es, it, he, ar, de), default: 'en'
 
-## Facilities Data
+This tool must be called before search-hotels whenever the user mentions specific hotel amenities or requirements. It returns facility IDs that must be used with the search-hotels tool's facilities parameter to properly filter hotels.
 
-The server includes built-in facilities data to provide information about hotel amenities. This data is now directly embedded in the codebase as a constant in `const.ts`, making it more efficient and eliminating the need for external file loading.
+## Resources
 
-The facilities data includes translations in multiple languages:
+The standard server provides hotel facilities data as resources in multiple languages:
+
 - English (en)
 - Spanish (es)
 - Italian (it)
@@ -139,13 +136,30 @@ The facilities data includes translations in multiple languages:
 - Arabic (ar)
 - German (de)
 
+These resources can be accessed using the `hotel://facilities/{language}` URI pattern, where `{language}` is one of the supported language codes.
+
+## Facilities Data
+
+The server includes built-in facilities data to provide information about hotel amenities. This data is used to filter hotel searches based on specific amenities requested by users.
+
 Each facility includes:
 - `facility_id`: Unique identifier for the facility
 - `facility`: Name of the facility in English
 - `sort`: Sort order for display
 - `translation`: Array of translations in different languages
 
-When creating a session, the available facilities are returned as part of the response, allowing LLMs to use the appropriate facility IDs when filtering hotel searches.
+When using the `get-facilities` tool, the available facilities are returned as part of the response, allowing LLMs to use the appropriate facility IDs when filtering hotel searches with the `search-hotels` tool.
+
+## Workflow Example
+
+A typical workflow for using the standard server would be:
+
+1. Use `find-place` to convert a user's location query into coordinates
+2. Use `get-facilities` to identify facility IDs for any amenities the user requested
+3. Use `search-hotels` with the coordinates and facility IDs to find matching hotels
+4. Use `load-more-hotels` if more results are needed beyond the initial 50
+5. Use `get-hotel-details` to retrieve comprehensive information about a specific hotel
+6. Use `book-hotel` to initiate the booking process and generate a payment link
 
 ## Publishing to npm
 
@@ -156,7 +170,7 @@ To publish this package to npm, follow these steps:
    npm login
    ```
 
-2. Update the version number in package.json if needed (current version is 0.0.5):
+2. Update the version number in package.json:
    ```bash
    npm version patch  # or minor or major
    ```
@@ -172,14 +186,3 @@ To publish this package to npm, follow these steps:
    ```
 
 After publishing, users can install and run the package using npm or npx as described in the Installation section.
-
-## Configuration
-
-The server uses the following default configuration (defined in `config.ts`):
-
-- API Base URL: `https://api.dev.jinkotravel.com`
-- Default Market: `fr`
-- Default Currency: `EUR`
-- Default Country Code: `fr`
-
-These defaults can be overridden when creating a session by providing the appropriate parameters.
