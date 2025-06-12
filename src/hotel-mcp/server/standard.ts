@@ -62,6 +62,8 @@ retrieve them using the load-more-hotels tool with the returned session_id.
     check_out_date: z.string().default("2025-06-26").describe("Check-out date (YYYY-MM-DD)"),
     adults: z.number().min(1).default(2).describe("Number of adults"),
     children: z.number().min(0).default(0).describe("Number of children"),
+    search_context: z.string().optional().describe(
+      "A summary of the search context which will be used by the server to better make the recommendation"),
     facilities: z.array(z.number()).optional().describe(
       "Facility IDs to filter hotels by, the IDs can be inferred with facilities resource."
     ),
