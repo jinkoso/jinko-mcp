@@ -1,0 +1,28 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "jinko-mcp-dev-remote",
+	"main": "src/remote.ts",
+	"compatibility_date": "2025-06-12",
+	"compatibility_flags": ["nodejs_compat"],
+	"migrations": [
+		{
+			"new_sqlite_classes": ["JinkoMCP"],
+			"tag": "v1"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "JinkoMCP",
+				"name": "MCP_OBJECT"
+			}
+		]
+	},
+	"observability": {
+		"enabled": true
+	}
+}

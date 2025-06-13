@@ -38,7 +38,9 @@
   },
   "homepage": "https://github.com/jinkocx/jinko-mcp#readme",
   "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.0.5",
     "@modelcontextprotocol/sdk": "^1.11.0",
+    "agents": "^0.0.95",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "js-yaml": "^4.1.0",
@@ -53,6 +55,6 @@
     "@types/uuid": "^10.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
-    "wrangler": "^3.114.8"
+    "wrangler": "^4.19.2"
   }
 }

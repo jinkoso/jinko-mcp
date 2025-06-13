@@ -212,3 +212,7 @@ supportedLanguages.forEach(lang => {
 export async function get_server() {
   return server;
 }
+
+export function get_sync_server() {
+  return server;
+}
