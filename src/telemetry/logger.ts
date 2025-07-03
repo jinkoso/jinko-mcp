@@ -1,12 +1,8 @@
 /**
- * Structured logging with trace correlation for MCP server
+ * Simplified structured logging for MCP server
  */
-import { trace, context } from '@opentelemetry/api';
 
 export interface LogContext {
-  traceId?: string;
-  spanId?: string;
-  trackingId?: string;
   operation?: string;
   toolName?: string;
   endpoint?: string;
@@ -23,39 +19,19 @@ export enum LogLevel {
 
 export class MCPLogger {
   private serviceName: string;
-  private correlateTraces: boolean;
 
-  constructor(serviceName: string = 'mcp-server', correlateTraces: boolean = true) {
+  constructor(serviceName: string = 'mcp-server') {
     this.serviceName = serviceName;
-    this.correlateTraces = correlateTraces;
-  }
-
-  private getTraceContext(): { traceId?: string; spanId?: string } {
-    if (!this.correlateTraces) {
-      return {};
-    }
-
-    const activeSpan = trace.getActiveSpan();
-    if (activeSpan) {
-      const spanContext = activeSpan.spanContext();
-      return {
-        traceId: spanContext.traceId,
-        spanId: spanContext.spanId,
-      };
-    }
-    return {};
   }
 
   private formatLogEntry(level: LogLevel, message: string, context: LogContext = {}): string {
     const timestamp = new Date().toISOString();
-    const traceContext = this.getTraceContext();
     
     const logEntry = {
       timestamp,
       level,
       service: this.serviceName,
       message,
-      ...traceContext,
       ...context,
     };
 
@@ -79,40 +55,36 @@ export class MCPLogger {
   }
 
   // Convenience methods for common MCP operations
-  logToolCall(toolName: string, trackingId: string, params: any, message: string = 'Tool called'): void {
+  logToolCall(toolName: string, params: any, message: string = 'Tool called'): void {
     this.info(message, {
       operation: 'tool_call',
       toolName,
-      trackingId,
       params: this.sanitizeParams(params),
     });
   }
 
-  logToolResult(toolName: string, trackingId: string, duration: number, status: string, message: string = 'Tool completed'): void {
+  logToolResult(toolName: string, duration: number, status: string, message: string = 'Tool completed'): void {
     this.info(message, {
       operation: 'tool_result',
       toolName,
-      trackingId,
       duration,
       status,
     });
   }
 
-  logApiCall(endpoint: string, method: string, trackingId: string, message: string = 'API call initiated'): void {
+  logApiCall(endpoint: string, method: string, message: string = 'API call initiated'): void {
     this.info(message, {
       operation: 'api_call',
       endpoint,
       method,
-      trackingId,
     });
   }
 
-  logApiResult(endpoint: string, method: string, trackingId: string, duration: number, status: number, message: string = 'API call completed'): void {
+  logApiResult(endpoint: string, method: string, duration: number, status: number, message: string = 'API call completed'): void {
     this.info(message, {
       operation: 'api_result',
       endpoint,
       method,
-      trackingId,
       duration,
       status,
     });
@@ -162,9 +134,9 @@ let globalLogger: MCPLogger | null = null;
 /**
  * Get or create the global logger instance
  */
-export function getLogger(serviceName?: string, correlateTraces?: boolean): MCPLogger {
+export function getLogger(serviceName?: string): MCPLogger {
   if (!globalLogger) {
-    globalLogger = new MCPLogger(serviceName, correlateTraces);
+    globalLogger = new MCPLogger(serviceName);
   }
   return globalLogger;
 }
@@ -172,7 +144,7 @@ export function getLogger(serviceName?: string, correlateTraces?: boolean): MCPL
 /**
  * Initialize logging - should be called early in the application lifecycle
  */
-export function initializeLogging(serviceName?: string, correlateTraces?: boolean): MCPLogger {
-  globalLogger = new MCPLogger(serviceName, correlateTraces);
+export function initializeLogging(serviceName?: string): MCPLogger {
+  globalLogger = new MCPLogger(serviceName);
   return globalLogger;
 }

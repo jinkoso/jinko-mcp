@@ -8,7 +8,7 @@ import { z } from "zod";
 import { createSession } from "../tools/customer/places.js";
 import { searchHotels, getHotelDetails } from "../tools/customer/search.js";
 import { bookHotel } from "../tools/customer/booking.js";
-import { initializeInstrumentation, MCPMetrics, TelemetryMiddleware, initializeLogging } from "../../telemetry/index.js";
+import { initializeTelemetryMiddleware, initializeLogging } from "../../telemetry/index.js";
 
 // // Import resource handlers
 // import { getFacilitiesResource } from "./resources.js";
@@ -21,10 +21,8 @@ import { initializeInstrumentation, MCPMetrics, TelemetryMiddleware, initializeL
 // const facilitiesData = loadFacilitiesData();
 
 // Initialize telemetry
-const instrumentation = initializeInstrumentation();
 const logger = initializeLogging('hotel-booking-mcp-customer');
-const metrics = new MCPMetrics(instrumentation.getMeter());
-const telemetryMiddleware = new TelemetryMiddleware(instrumentation, metrics, logger);
+const telemetryMiddleware = initializeTelemetryMiddleware();
 
 // Create server instance
 const server = new McpServer({

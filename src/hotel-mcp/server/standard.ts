@@ -8,14 +8,12 @@ import { getFacilitiesByLanguage } from "../facilities.js";
 import { getHotelDetails, loadMoreHotels, searchHotels } from "../tools/standard/search.js";
 import { bookHotel } from "../tools/standard/booking.js";
 import { autocompletePlaces } from "../tools/standard/places.js";
-import { initializeInstrumentation, MCPMetrics, TelemetryMiddleware, initializeLogging } from "../../telemetry/index.js";
+import { initializeTelemetryMiddleware, initializeLogging } from "../../telemetry/index.js";
 
 
 // Initialize telemetry
-const instrumentation = initializeInstrumentation();
 const logger = initializeLogging('hotel-booking-mcp');
-const metrics = new MCPMetrics(instrumentation.getMeter());
-const telemetryMiddleware = new TelemetryMiddleware(instrumentation, metrics, logger);
+const telemetryMiddleware = initializeTelemetryMiddleware();
 
 // Create server instance
 const server = new McpServer({

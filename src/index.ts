@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Initialize telemetry first, before any other imports
-import { MCPInstrumentation } from './telemetry/instrumentation.js';
+import { initializeInstrumentation } from './telemetry/instrumentation.js';
 import { initializeLogging } from './telemetry/logger.js';
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -12,33 +12,21 @@ import { get_server as get_standard_server } from './hotel-mcp/server/standard.j
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 // Initialize telemetry and logging
-const instrumentation = new MCPInstrumentation();
+const instrumentation = initializeInstrumentation();
 const logger = initializeLogging(process.env.OTEL_SERVICE_NAME || 'mcp-server');
 
-// Main functio should take an optional command line argument to choose the server type
+// Main function should take an optional command line argument to choose the server type
 async function main() {
   const serverType = process.argv[2] || "standard";
   const startTime = Date.now();
   
-  // Create a span for server initialization
-  const span = instrumentation.createSpan('mcp_server_initialization');
-  span.setAttributes({
-    'mcp.server.type': serverType,
-    'mcp.transport': 'stdio',
-    'node.version': process.version,
-    'platform': process.platform
-  });
-  
   try {
-    
     logger.info('Starting MCP server', { 
       operation: 'server_startup',
       serverType,
       timestamp: new Date().toISOString(),
       nodeVersion: process.version,
-      platform: process.platform,
-      traceId: span.spanContext().traceId,
-      spanId: span.spanContext().spanId
+      platform: process.platform
     });
     
     // Create stdio transport
@@ -76,18 +64,8 @@ async function main() {
       transport: 'stdio',
       telemetryEnabled: process.env.OTEL_ENABLED === 'true',
       serviceName: process.env.OTEL_SERVICE_NAME || 'mcp-server',
-      endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'not_configured',
-      traceId: span.spanContext().traceId,
-      spanId: span.spanContext().spanId
+      endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'not_configured'
     });
-    
-    // Complete the initialization span successfully
-    span.setAttributes({
-      'mcp.initialization.duration_ms': initializationTime,
-      'mcp.initialization.status': 'success'
-    });
-    span.setStatus({ code: 2 }); // OK status
-    span.end();
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -97,10 +75,6 @@ async function main() {
       serverType: process.argv[2] || 'standard'
     });
     
-    // Complete the span with error status
-    span.setStatus({ code: 1, message: errorMessage }); // ERROR status
-    span.recordException(error instanceof Error ? error : new Error(errorMessage));
-    span.end();
     console.error("Error starting server:", error);
     process.exit(1);
   }

@@ -1,133 +1,74 @@
 /**
- * OpenTelemetry instrumentation setup for MCP server with OTLP HTTP export
+ * OpenTelemetry metrics-only setup for MCP server with OTLP HTTP export
  */
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { metrics, Meter } from '@opentelemetry/api';
+import { MeterProvider } from '@opentelemetry/sdk-metrics';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { trace, metrics, context, SpanStatusCode, SpanKind, Span, Tracer, Meter } from '@opentelemetry/api';
-import { v4 as uuidv4 } from 'uuid';
 import { TelemetryConfig, defaultTelemetryConfig } from './config.js';
 
 export class MCPInstrumentation {
-  private sdk: NodeSDK | null = null;
-  private tracer: Tracer;
+  private meterProvider: MeterProvider | null = null;
   private meter: Meter;
   private config: TelemetryConfig;
 
   constructor(config: Partial<TelemetryConfig> = {}) {
     this.config = { ...defaultTelemetryConfig, ...config };
     
-    // Initialize basic tracer and meter first
-    this.tracer = trace.getTracer(this.config.serviceName, this.config.serviceVersion);
-    this.meter = metrics.getMeter(this.config.serviceName, this.config.serviceVersion);
-    
-    if (this.config.enabled) {
-      this.initializeSDK();
+    if (this.config.enabled && this.config.metrics.enabled) {
+      this.initializeMetrics();
     }
+    
+    // Initialize meter (will use global provider if not initialized)
+    this.meter = metrics.getMeter(this.config.serviceName, this.config.serviceVersion);
   }
 
-  private initializeSDK(): void {
+  private initializeMetrics(): void {
     try {
-      // Set environment variables for OTLP export
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = this.config.exporterConfig.endpoint;
-      process.env.OTEL_SERVICE_NAME = this.config.serviceName;
-      process.env.OTEL_SERVICE_VERSION = this.config.serviceVersion;
-      
-      // Set headers if provided
-      if (Object.keys(this.config.exporterConfig.headers).length > 0) {
-        const headersString = Object.entries(this.config.exporterConfig.headers)
-          .map(([key, value]) => `${key}=${value}`)
-          .join(',');
-        process.env.OTEL_EXPORTER_OTLP_HEADERS = headersString;
-      }
-
-      this.sdk = new NodeSDK({
-        instrumentations: [
-          getNodeAutoInstrumentations({
-            '@opentelemetry/instrumentation-fs': {
-              enabled: false,
-            },
-          }),
-        ],
+      // Create resource
+      const resource = resourceFromAttributes({
+        [SemanticResourceAttributes.SERVICE_NAME]: this.config.serviceName,
+        [SemanticResourceAttributes.SERVICE_VERSION]: this.config.serviceVersion,
       });
 
-      this.sdk.start();
-      process.stderr.write('OpenTelemetry SDK initialized successfully\n');
-      process.stderr.write(`Service: ${this.config.serviceName}\n`);
-      process.stderr.write(`Exporting to: ${this.config.exporterConfig.endpoint}\n`);
-    } catch (error) {
-      process.stderr.write(`Failed to initialize OpenTelemetry SDK: ${error}\n`);
-    }
-  }
+      // Create OTLP metric exporter
+      const metricExporter = new OTLPMetricExporter({
+        url: `${this.config.exporterConfig.endpoint}/v1/metrics`,
+        headers: this.config.exporterConfig.headers,
+      });
 
-  getTracer(): Tracer {
-    return this.tracer;
+      // Create metric reader
+      const metricReader = new PeriodicExportingMetricReader({
+        exporter: metricExporter,
+        exportIntervalMillis: this.config.metrics.exportInterval,
+      });
+
+      // Create meter provider
+      this.meterProvider = new MeterProvider({
+        resource,
+        readers: [metricReader],
+      });
+
+      // Set global meter provider
+      metrics.setGlobalMeterProvider(this.meterProvider);
+
+      process.stderr.write('OpenTelemetry Metrics initialized successfully\n');
+      process.stderr.write(`Service: ${this.config.serviceName}\n`);
+      process.stderr.write(`Exporting to: ${this.config.exporterConfig.endpoint}/v1/metrics\n`);
+    } catch (error) {
+      process.stderr.write(`Failed to initialize OpenTelemetry Metrics: ${error}\n`);
+    }
   }
 
   getMeter(): Meter {
     return this.meter;
   }
 
-  createSpan(name: string, kind: SpanKind = SpanKind.INTERNAL): Span {
-    return this.tracer.startSpan(name, { kind });
-  }
-
-  createToolSpan(toolName: string, trackingId: string): Span {
-    const span = this.tracer.startSpan(`tool.${toolName}`, {
-      kind: SpanKind.INTERNAL,
-      attributes: {
-        'mcp.tool.name': toolName,
-        'mcp.tracking_id': trackingId,
-        'mcp.operation': 'tool_call',
-      },
-    });
-    return span;
-  }
-
-  createApiSpan(endpoint: string, method: string, trackingId: string): Span {
-    const span = this.tracer.startSpan(`api.${method.toLowerCase()}.${endpoint}`, {
-      kind: SpanKind.CLIENT,
-      attributes: {
-        'http.method': method,
-        'http.url': endpoint,
-        'mcp.tracking_id': trackingId,
-        'mcp.operation': 'api_call',
-      },
-    });
-    return span;
-  }
-
-  async withSpan<T>(span: Span, fn: () => Promise<T>): Promise<T> {
-    return context.with(trace.setSpan(context.active(), span), fn);
-  }
-
-  setSpanError(span: Span, error: Error): void {
-    span.recordException(error);
-    span.setStatus({
-      code: SpanStatusCode.ERROR,
-      message: error.message,
-    });
-  }
-
-  setSpanSuccess(span: Span): void {
-    span.setStatus({ code: SpanStatusCode.OK });
-  }
-
-  generateTrackingId(): string {
-    return uuidv4();
-  }
-
-  getCurrentTrackingId(): string | undefined {
-    const activeSpan = trace.getActiveSpan();
-    if (activeSpan) {
-      return activeSpan.spanContext().traceId;
-    }
-    return undefined;
-  }
-
   shutdown(): Promise<void> {
-    if (this.sdk) {
-      return this.sdk.shutdown();
+    if (this.meterProvider) {
+      return this.meterProvider.shutdown();
     }
     return Promise.resolve();
   }
