@@ -1,9 +1,8 @@
 /**
- * Simplified OpenTelemetry instrumentation setup for MCP server
+ * OpenTelemetry instrumentation setup for MCP server with OTLP HTTP export
  */
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { trace, metrics, context, SpanStatusCode, SpanKind, Span, Tracer, Meter } from '@opentelemetry/api';
 import { v4 as uuidv4 } from 'uuid';
@@ -29,6 +28,19 @@ export class MCPInstrumentation {
 
   private initializeSDK(): void {
     try {
+      // Set environment variables for OTLP export
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = this.config.exporterConfig.endpoint;
+      process.env.OTEL_SERVICE_NAME = this.config.serviceName;
+      process.env.OTEL_SERVICE_VERSION = this.config.serviceVersion;
+      
+      // Set headers if provided
+      if (Object.keys(this.config.exporterConfig.headers).length > 0) {
+        const headersString = Object.entries(this.config.exporterConfig.headers)
+          .map(([key, value]) => `${key}=${value}`)
+          .join(',');
+        process.env.OTEL_EXPORTER_OTLP_HEADERS = headersString;
+      }
+
       this.sdk = new NodeSDK({
         instrumentations: [
           getNodeAutoInstrumentations({
@@ -40,9 +52,11 @@ export class MCPInstrumentation {
       });
 
       this.sdk.start();
-      console.log('OpenTelemetry SDK initialized successfully');
+      process.stderr.write('OpenTelemetry SDK initialized successfully\n');
+      process.stderr.write(`Service: ${this.config.serviceName}\n`);
+      process.stderr.write(`Exporting to: ${this.config.exporterConfig.endpoint}\n`);
     } catch (error) {
-      console.error('Failed to initialize OpenTelemetry SDK:', error);
+      process.stderr.write(`Failed to initialize OpenTelemetry SDK: ${error}\n`);
     }
   }
 

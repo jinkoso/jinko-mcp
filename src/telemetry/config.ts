@@ -25,7 +25,7 @@ export interface TelemetryConfig {
 }
 
 export const defaultTelemetryConfig: TelemetryConfig = {
-  enabled: process.env.MCP_TELEMETRY_ENABLED === 'true' || process.env.OTEL_SDK_DISABLED !== 'true',
+  enabled: process.env.OTEL_ENABLED === 'true' || process.env.MCP_TELEMETRY_ENABLED === 'true' || process.env.OTEL_SDK_DISABLED !== 'true',
   serviceName: process.env.OTEL_SERVICE_NAME || 'mcp-server',
   serviceVersion: process.env.OTEL_SERVICE_VERSION || '1.0.0',
   exporterConfig: {

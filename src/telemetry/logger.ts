@@ -63,19 +63,19 @@ export class MCPLogger {
   }
 
   error(message: string, context: LogContext = {}): void {
-    console.error(this.formatLogEntry(LogLevel.ERROR, message, context));
+    process.stderr.write(this.formatLogEntry(LogLevel.ERROR, message, context) + '\n');
   }
 
   warn(message: string, context: LogContext = {}): void {
-    console.warn(this.formatLogEntry(LogLevel.WARN, message, context));
+    process.stderr.write(this.formatLogEntry(LogLevel.WARN, message, context) + '\n');
   }
 
   info(message: string, context: LogContext = {}): void {
-    console.info(this.formatLogEntry(LogLevel.INFO, message, context));
+    process.stderr.write(this.formatLogEntry(LogLevel.INFO, message, context) + '\n');
   }
 
   debug(message: string, context: LogContext = {}): void {
-    console.debug(this.formatLogEntry(LogLevel.DEBUG, message, context));
+    process.stderr.write(this.formatLogEntry(LogLevel.DEBUG, message, context) + '\n');
   }
 
   // Convenience methods for common MCP operations
