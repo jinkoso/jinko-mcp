@@ -65,4 +65,24 @@ export class TelemetryMiddleware {
   recordApiCall(endpoint: string, method: string, duration: number, status: string): void {
     this.metrics.recordApiCall(endpoint, method, duration, status);
   }
+
+  /**
+   * Record hotel search results count
+   */
+  recordHotelSearchResults(hotelCount: number): void {
+    this.metrics.recordHotelSearchResults(hotelCount);
+  }
+
+  /**
+   * Record hotel search call with detailed labels
+   */
+  recordHotelSearchCall(params: {
+    location_name?: string;
+    check_in_date: string;
+    nights: number;
+    total_travelers: number;
+    status: string;
+  }): void {
+    this.metrics.recordHotelSearchCall(params);
+  }
 }

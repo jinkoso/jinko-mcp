@@ -63,6 +63,7 @@ retrieve them using the load-more-hotels tool with the returned session_id.
   {
     latitude: z.number().describe("Latitude of the location"),
     longitude: z.number().describe("Longitude of the location"),
+    name: z.string().optional().describe("Optional location name or hotel name."),
     check_in_date: z.string().default("2025-06-25").describe("Check-in date (YYYY-MM-DD)"),
     check_out_date: z.string().default("2025-06-26").describe("Check-out date (YYYY-MM-DD)"),
     adults: z.number().min(1).default(2).describe("Number of adults"),
