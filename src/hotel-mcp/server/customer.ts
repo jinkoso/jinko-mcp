@@ -8,6 +8,7 @@ import { z } from "zod";
 import { createSession } from "../tools/customer/places.js";
 import { searchHotels, getHotelDetails } from "../tools/customer/search.js";
 import { bookHotel } from "../tools/customer/booking.js";
+import { initializeTelemetryMiddleware, initializeLogging } from "../../telemetry/index.js";
 
 // // Import resource handlers
 // import { getFacilitiesResource } from "./resources.js";
@@ -18,6 +19,10 @@ import { bookHotel } from "../tools/customer/booking.js";
 // ========== Server Setup ==========
 // // Load facilities data
 // const facilitiesData = loadFacilitiesData();
+
+// Initialize telemetry
+const logger = initializeLogging('hotel-booking-mcp-customer');
+const telemetryMiddleware = initializeTelemetryMiddleware();
 
 // Create server instance
 const server = new McpServer({
@@ -46,7 +51,7 @@ server.tool(
     currency: z.string().optional().describe("Currency code (e.g., 'EUR', 'USD')"),
     country_code: z.string().optional().describe("Country code (e.g., 'fr', 'us')"),
   },
-  createSession
+  telemetryMiddleware.instrumentTool("create-session", createSession)
 );
 
 // /**
@@ -90,7 +95,7 @@ server.tool(
       "Facility IDs to filter hotels by, the IDs can be inferred with facilities resource."
     ),
   },
-  searchHotels
+  telemetryMiddleware.instrumentTool("search-hotels", searchHotels)
 );
 
 /**
@@ -102,7 +107,7 @@ server.tool(
   {
     hotel_id: z.string().describe("ID of the hotel to get details for"),
   },
-  getHotelDetails
+  telemetryMiddleware.instrumentTool("get-hotel-details", getHotelDetails)
 );
 
 /**
@@ -115,7 +120,7 @@ server.tool(
     hotel_id: z.string().describe("ID of the hotel to book"),
     rate_id: z.string().describe("ID of the room to book"),
   },
-  bookHotel
+  telemetryMiddleware.instrumentTool("book-hotel", bookHotel)
 );
 
 // // ========== Register Resources ==========

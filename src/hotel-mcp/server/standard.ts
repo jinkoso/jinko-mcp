@@ -8,7 +8,12 @@ import { getFacilitiesByLanguage } from "../facilities.js";
 import { getHotelDetails, loadMoreHotels, searchHotels } from "../tools/standard/search.js";
 import { bookHotel } from "../tools/standard/booking.js";
 import { autocompletePlaces } from "../tools/standard/places.js";
+import { initializeTelemetryMiddleware, initializeLogging } from "../../telemetry/index.js";
 
+
+// Initialize telemetry
+const logger = initializeLogging('hotel-booking-mcp');
+const telemetryMiddleware = initializeTelemetryMiddleware();
 
 // Create server instance
 const server = new McpServer({
@@ -39,7 +44,7 @@ matching places with their details and precise coordinates.
   query: z.string().describe("User's input for place search"),
   language: z.string().optional().default("en").describe("Language for the place search"),
 },
-autocompletePlaces
+telemetryMiddleware.instrumentTool("find-place", autocompletePlaces)
 );
 
 /**
@@ -58,6 +63,7 @@ retrieve them using the load-more-hotels tool with the returned session_id.
   {
     latitude: z.number().describe("Latitude of the location"),
     longitude: z.number().describe("Longitude of the location"),
+    name: z.string().optional().describe("Optional location name or hotel name."),
     check_in_date: z.string().default("2025-06-25").describe("Check-in date (YYYY-MM-DD)"),
     check_out_date: z.string().default("2025-06-26").describe("Check-out date (YYYY-MM-DD)"),
     adults: z.number().min(1).default(2).describe("Number of adults"),
@@ -68,7 +74,7 @@ retrieve them using the load-more-hotels tool with the returned session_id.
       "Facility IDs to filter hotels by, the IDs can be inferred with facilities resource."
     ),
   },
-  searchHotels
+  telemetryMiddleware.instrumentTool("search-hotels", searchHotels)
 );
 
 server.tool(
@@ -83,7 +89,7 @@ further pagination is possible.
   {
     session_id: z.string().describe("Session ID from a previous search-hotels or load-more-hotels response"),
   },
-  loadMoreHotels
+  telemetryMiddleware.instrumentTool("load-more-hotels", loadMoreHotels)
 )
 
 /**
@@ -103,7 +109,7 @@ to provide them with all available options and complete booking information.
     session_id: z.string().describe("The session ID from a previous search"),
     hotel_id: z.string().describe("ID of the hotel to get details for"),
   },
-  getHotelDetails
+  telemetryMiddleware.instrumentTool("get-hotel-details", getHotelDetails)
 );
 
 server.tool(
@@ -123,7 +129,7 @@ booking details such as hotel name, check-in/out dates, and total price.
     hotel_id: z.string().describe("ID of the hotel to book"),
     rate_id: z.string().describe("ID of the specific rate option the user has selected"),
   },
-  bookHotel,
+  telemetryMiddleware.instrumentTool("book-hotel", bookHotel),
 );
 
 /**

@@ -5,6 +5,7 @@ import fs from "fs";
 import yaml from "js-yaml";
 import { API_BASE_URL, FACILITIES_PATH, MAX_QUOTE_POLL_ATTEMPTS, QUOTE_POLL_INTERVAL_MS } from "./config.js";
 import { session } from "./state.js";
+import { getLogger, getTelemetryMiddleware } from "../telemetry/index.js";
 
 /**
  * Load facilities data from JSON file
@@ -37,6 +38,10 @@ export async function makeApiRequest<T>(
   body?: any
 ): Promise<T | null> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const logger = getLogger();
+  
+  const startTime = Date.now();
+  
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -59,6 +64,8 @@ export async function makeApiRequest<T>(
     headers["X-Country-Code"] = session.country_code;
   }
 
+  logger.logApiCall(endpoint, method);
+
   try {
     const options: RequestInit = {
       method,
@@ -70,12 +77,35 @@ export async function makeApiRequest<T>(
     }
 
     const response = await fetch(url, options);
+    const duration = (Date.now() - startTime) / 1000;
+    
     if (!response.ok) {
+      // Record API metrics
+      const telemetryMiddleware = getTelemetryMiddleware();
+      telemetryMiddleware.recordApiCall(endpoint, method, duration, 'error');
+      
+      logger.logApiResult(endpoint, method, duration, response.status, `API call failed: ${response.status}`);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return (await response.json()) as T;
+    
+    const result = (await response.json()) as T;
+    
+    // Record successful API metrics
+    const telemetryMiddleware = getTelemetryMiddleware();
+    telemetryMiddleware.recordApiCall(endpoint, method, duration, 'success');
+    
+    logger.logApiResult(endpoint, method, duration, response.status);
+    
+    return result;
   } catch (error) {
-    console.error(`Error making API request to ${endpoint}:`, error);
+    const duration = (Date.now() - startTime) / 1000;
+    
+    // Record error API metrics
+    const telemetryMiddleware = getTelemetryMiddleware();
+    telemetryMiddleware.recordApiCall(endpoint, method, duration, 'error');
+    
+    logger.logApiResult(endpoint, method, duration, 0, `API call error: ${(error as Error).message}`);
+    logger.logError(error as Error, { endpoint, method });
     return null;
   }
 }

@@ -5,6 +5,17 @@ import { makeApiRequest, createYamlResponse } from "../../utils.js";
 import { session } from "../../state.js";
 import { Hotel } from "../../types.js";
 import { formatHotelToDetailObject, formatHotelToSummaryObject } from "../../formatters.js";
+import { getTelemetryMiddleware } from "../../../telemetry/index.js";
+
+/**
+ * Calculate number of nights between check-in and check-out dates
+ */
+function calculateNights(checkInDate: string, checkOutDate: string): number {
+  const checkIn = new Date(checkInDate);
+  const checkOut = new Date(checkOutDate);
+  const timeDiff = checkOut.getTime() - checkIn.getTime();
+  return Math.ceil(timeDiff / (1000 * 3600 * 24));
+}
 
 /**
  * Search for available hotels based on criteria
@@ -12,6 +23,7 @@ import { formatHotelToDetailObject, formatHotelToSummaryObject } from "../../for
 export async function searchHotels(params: {
   latitude: number;
   longitude: number;
+  name?: string;
   check_in_date: string;
   check_out_date: string;
   adults: number;
@@ -36,6 +48,11 @@ export async function searchHotels(params: {
     max_results: 50,
   };
 
+  // Calculate metrics data
+  const nights = calculateNights(params.check_in_date, params.check_out_date);
+  const totalTravelers = params.adults + params.children;
+  const telemetryMiddleware = getTelemetryMiddleware();
+
   // Make API request to search for hotels
   const availabilityResult = await makeApiRequest<any>(
     "/api/v1/hotels/availability",
@@ -44,6 +61,15 @@ export async function searchHotels(params: {
   );
 
   if (!availabilityResult) {
+    // Record failed search call
+    telemetryMiddleware.recordHotelSearchCall({
+      location_name: params.name,
+      check_in_date: params.check_in_date,
+      nights: nights,
+      total_travelers: totalTravelers,
+      status: 'error'
+    });
+
     return createYamlResponse({
       status: "error",
       message: "Failed to retrieve hotel availability data. Please try again later."
@@ -51,6 +77,16 @@ export async function searchHotels(params: {
   }
 
   const { session_id=null, has_more=false, hotels = [], total = 0 } = availabilityResult;
+
+  // Record hotel search metrics
+  telemetryMiddleware.recordHotelSearchResults(hotels.length);
+  telemetryMiddleware.recordHotelSearchCall({
+    location_name: params.name,
+    check_in_date: params.check_in_date,
+    nights: nights,
+    total_travelers: totalTravelers,
+    status: hotels.length === 0 ? 'empty' : 'success'
+  });
 
   if (hotels.length === 0) {
     return createYamlResponse({
@@ -86,6 +122,8 @@ export async function searchHotels(params: {
 export async function loadMoreHotels(params: {
   session_id: string;
 }) {
+  const telemetryMiddleware = getTelemetryMiddleware();
+
   // Make API request to load more hotels
   const availabilityResult = await makeApiRequest<any>(
     "/api/v1/hotels/availability/load_more",
@@ -101,6 +139,9 @@ export async function loadMoreHotels(params: {
   }
 
   const { session_id=null, has_more=false, hotels = [], total = 0 } = availabilityResult;
+
+  // Record hotel search results count for load more
+  telemetryMiddleware.recordHotelSearchResults(hotels.length);
 
   if (hotels.length === 0) {
     return createYamlResponse({
