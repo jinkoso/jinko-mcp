@@ -285,6 +285,13 @@ export class UnifiedMetrics {
   private async exportCounter(name: string, value: number, attributes: Record<string, string>): Promise<void> {
     const now = Date.now() * 1000000; // Convert to nanoseconds
     
+    // Add version information to attributes
+    const enrichedAttributes = {
+      ...attributes,
+      version: this.config.serviceVersion,
+      service: this.config.serviceName,
+    };
+    
     const metric: OTLPMetric = {
       name,
       description: `Counter metric: ${name}`,
@@ -292,7 +299,7 @@ export class UnifiedMetrics {
         dataPoints: [{
           timeUnixNano: now.toString(),
           value,
-          attributes: Object.entries(attributes).map(([k, v]) => ({
+          attributes: Object.entries(enrichedAttributes).map(([k, v]) => ({
             key: k,
             value: { stringValue: v }
           })),
@@ -308,6 +315,13 @@ export class UnifiedMetrics {
   private async exportHistogram(name: string, value: number, attributes: Record<string, string>): Promise<void> {
     const now = Date.now() * 1000000; // Convert to nanoseconds
     
+    // Add version information to attributes
+    const enrichedAttributes = {
+      ...attributes,
+      version: this.config.serviceVersion,
+      service: this.config.serviceName,
+    };
+    
     const metric: OTLPMetric = {
       name,
       description: `Histogram metric: ${name}`,
@@ -319,7 +333,7 @@ export class UnifiedMetrics {
           sum: value,
           bucketCounts: ['0', '1'], // Simple bucket: one value
           explicitBounds: [value],
-          attributes: Object.entries(attributes).map(([k, v]) => ({
+          attributes: Object.entries(enrichedAttributes).map(([k, v]) => ({
             key: k,
             value: { stringValue: v }
           })),
