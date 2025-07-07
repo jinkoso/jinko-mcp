@@ -5,7 +5,7 @@ import { makeApiRequest, createYamlResponse } from "../../utils.js";
 import { session } from "../../state.js";
 import { Hotel } from "../../types.js";
 import { formatHotelToDetailObject, formatHotelToSummaryObject } from "../../formatters.js";
-import { getTelemetryMiddleware } from "../../../telemetry/index.js";
+import { getMetrics } from "../../../telemetry/index.js";
 
 /**
  * Calculate number of nights between check-in and check-out dates
@@ -51,7 +51,7 @@ export async function searchHotels(params: {
   // Calculate metrics data
   const nights = calculateNights(params.check_in_date, params.check_out_date);
   const totalTravelers = params.adults + params.children;
-  const telemetryMiddleware = getTelemetryMiddleware();
+  const metrics = getMetrics();
 
   // Make API request to search for hotels
   const availabilityResult = await makeApiRequest<any>(
@@ -62,7 +62,7 @@ export async function searchHotels(params: {
 
   if (!availabilityResult) {
     // Record failed search call
-    telemetryMiddleware.recordHotelSearchCall({
+    metrics.recordHotelSearchCall({
       location_name: params.name,
       check_in_date: params.check_in_date,
       nights: nights,
@@ -79,8 +79,8 @@ export async function searchHotels(params: {
   const { session_id=null, has_more=false, hotels = [], total = 0 } = availabilityResult;
 
   // Record hotel search metrics
-  telemetryMiddleware.recordHotelSearchResults(hotels.length);
-  telemetryMiddleware.recordHotelSearchCall({
+  metrics.recordHotelSearchResults(hotels.length);
+  metrics.recordHotelSearchCall({
     location_name: params.name,
     check_in_date: params.check_in_date,
     nights: nights,
@@ -122,7 +122,7 @@ export async function searchHotels(params: {
 export async function loadMoreHotels(params: {
   session_id: string;
 }) {
-  const telemetryMiddleware = getTelemetryMiddleware();
+  const metrics = getMetrics();
 
   // Make API request to load more hotels
   const availabilityResult = await makeApiRequest<any>(
@@ -141,7 +141,7 @@ export async function loadMoreHotels(params: {
   const { session_id=null, has_more=false, hotels = [], total = 0 } = availabilityResult;
 
   // Record hotel search results count for load more
-  telemetryMiddleware.recordHotelSearchResults(hotels.length);
+  metrics.recordHotelSearchResults(hotels.length);
 
   if (hotels.length === 0) {
     return createYamlResponse({

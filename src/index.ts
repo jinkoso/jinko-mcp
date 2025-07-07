@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 // Initialize telemetry first, before any other imports
-import { initializeInstrumentation } from './telemetry/instrumentation.js';
-import { getLogger } from './telemetry/logger.js';
+import { initializeTelemetry, getLogger } from './telemetry/index.js';
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
@@ -12,8 +11,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SERVICE_NAME } from './version.js';
 
 // Initialize telemetry and logging
-const instrumentation = initializeInstrumentation();
-const logger = getLogger('hotel-booking-mcp');
+const telemetry = initializeTelemetry();
+const logger = getLogger();
 
 // Main function should take an optional command line argument to choose the server type
 async function main() {
@@ -21,7 +20,7 @@ async function main() {
   const startTime = Date.now();
   
   try {
-    logger.info('Starting MCP server', { 
+    await logger.info('Starting MCP server', { 
       operation: 'server_startup',
       serverType,
       timestamp: new Date().toISOString(),
@@ -49,7 +48,7 @@ async function main() {
     const initializationTime = Date.now() - startTime;
     
     // Send server initialization telemetry to log collector
-    logger.info('MCP server initialized successfully', {
+    await logger.info('MCP server initialized successfully', {
       operation: 'server_initialized',
       serverType,
       initializationTime,
@@ -62,7 +61,7 @@ async function main() {
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Error starting server', { 
+    await logger.error('Error starting server', { 
       operation: 'server_initialization_failed',
       error: errorMessage,
       serverType: process.argv[2] || 'standard'

@@ -1,7 +1,7 @@
 /**
- * Simplified telemetry middleware for MCP tool metrics collection
+ * Unified telemetry middleware for MCP tool metrics collection
  */
-import { MCPMetrics } from './metrics.js';
+import { UnifiedMetrics } from './unified-telemetry.js';
 
 export interface ToolExecutionContext {
   toolName: string;
@@ -10,9 +10,9 @@ export interface ToolExecutionContext {
 }
 
 export class TelemetryMiddleware {
-  private metrics: MCPMetrics;
+  private metrics: UnifiedMetrics;
 
-  constructor(metrics: MCPMetrics) {
+  constructor(metrics: UnifiedMetrics) {
     this.metrics = metrics;
   }
 
