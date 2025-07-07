@@ -8,6 +8,9 @@ import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
+// Import version information from generated version file
+import { VERSION, SERVICE_NAME } from '../version.js';
+
 export interface LogContext {
   operation?: string;
   toolName?: string;
@@ -38,7 +41,7 @@ export class MCPLogger {
       // Create resource with service information
       const resource = resourceFromAttributes({
         [ATTR_SERVICE_NAME]: this.serviceName,
-        [ATTR_SERVICE_VERSION]: '1.0.0',
+        [ATTR_SERVICE_VERSION]: VERSION,
       });
 
       // Create OTLP log exporter
@@ -61,7 +64,7 @@ export class MCPLogger {
       logs.setGlobalLoggerProvider(this.loggerProvider);
 
       // Get the logger
-      this.otelLogger = logs.getLogger(this.serviceName, '1.0.0');
+      this.otelLogger = logs.getLogger(this.serviceName, VERSION);
 
       console.error(`OpenTelemetry Logs initialized successfully`);
       console.error(`Service: ${this.serviceName} Exporting to: https://log.api.jinko.so/v1/logs`);
@@ -105,6 +108,7 @@ export class MCPLogger {
         body: message,
         attributes: {
           'service.name': this.serviceName,
+          'service.version': VERSION,
           ...context,
         },
       });
@@ -220,23 +224,16 @@ export class MCPLogger {
   }
 }
 
-// Global logger instance
-let globalLogger: MCPLogger | null = null;
+let globalLoggers: Record<string, MCPLogger> = {};
 
 /**
  * Get or create the global logger instance
  */
 export function getLogger(serviceName?: string): MCPLogger {
-  if (!globalLogger) {
-    globalLogger = new MCPLogger(serviceName);
+  if (globalLoggers[serviceName || 'default']) {
+    return globalLoggers[serviceName || 'default'];
   }
-  return globalLogger;
-}
-
-/**
- * Initialize logging - should be called early in the application lifecycle
- */
-export function initializeLogging(serviceName?: string): MCPLogger {
-  globalLogger = new MCPLogger(serviceName);
-  return globalLogger;
+  const logger = new MCPLogger(serviceName);
+  globalLoggers[serviceName || 'default'] = logger;
+  return logger;
 }

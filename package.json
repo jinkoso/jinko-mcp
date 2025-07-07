@@ -8,9 +8,10 @@
     "jinko-mcp": "./build/index.js"
   },
   "scripts": {
-    "build": "tsc && chmod 755 build/index.js",
+    "prebuild": "node scripts/generate-version.js",
+    "build": "npm run prebuild && tsc && chmod 755 build/index.js",
     "start": "node build/index.js",
-    "dev": "ts-node --esm src/index.ts",
+    "dev": "npm run prebuild && ts-node --esm src/index.ts",
     "deploy": "npm run build && npx wrangler deploy",
     "deploy:preview": "npm run build && npx wrangler versions upload",
     "deploy:dev": "npm run build && npx wrangler deploy --env dev"

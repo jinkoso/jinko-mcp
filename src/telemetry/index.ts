@@ -3,7 +3,7 @@
  */
 export { MCPInstrumentation, getInstrumentation, initializeInstrumentation } from './instrumentation.js';
 export { MCPMetrics } from './metrics.js';
-export { MCPLogger, getLogger, initializeLogging, LogLevel, LogContext } from './logger.js';
+export { MCPLogger, getLogger, LogLevel, LogContext } from './logger.js';
 export { TelemetryMiddleware, ToolExecutionContext } from './middleware.js';
 export { TelemetryConfig, defaultTelemetryConfig } from './config.js';
 

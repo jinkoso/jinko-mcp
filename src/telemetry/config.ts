@@ -2,6 +2,8 @@
  * OpenTelemetry configuration for the MCP server - Metrics only
  */
 
+import { VERSION, SERVICE_NAME } from '../version.js';
+
 export interface TelemetryConfig {
   enabled: boolean;
   serviceName: string;
@@ -19,8 +21,8 @@ export interface TelemetryConfig {
 
 export const defaultTelemetryConfig: TelemetryConfig = {
   enabled: process.env.OTEL_ENABLED === 'true' || process.env.MCP_TELEMETRY_ENABLED === 'true' || process.env.OTEL_SDK_DISABLED !== 'true',
-  serviceName: process.env.OTEL_SERVICE_NAME || 'mcp-server',
-  serviceVersion: process.env.OTEL_SERVICE_VERSION || '1.0.0',
+  serviceName: process.env.OTEL_SERVICE_NAME || SERVICE_NAME,
+  serviceVersion: process.env.OTEL_SERVICE_VERSION || VERSION,
   exporterConfig: {
     endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://log.api.jinko.so',
     headers: process.env.OTEL_EXPORTER_OTLP_HEADERS 

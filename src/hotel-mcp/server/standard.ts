@@ -8,11 +8,11 @@ import { getFacilitiesByLanguage } from "../facilities.js";
 import { getHotelDetails, loadMoreHotels, searchHotels } from "../tools/standard/search.js";
 import { bookHotel } from "../tools/standard/booking.js";
 import { autocompletePlaces } from "../tools/standard/places.js";
-import { initializeTelemetryMiddleware, initializeLogging } from "../../telemetry/index.js";
+import { initializeTelemetryMiddleware, getLogger } from "../../telemetry/index.js";
 
 
 // Initialize telemetry
-const logger = initializeLogging('hotel-booking-mcp');
+const logger = getLogger('hotel-booking-mcp');
 const telemetryMiddleware = initializeTelemetryMiddleware();
 
 // Create server instance

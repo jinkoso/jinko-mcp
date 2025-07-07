@@ -2,17 +2,18 @@
 
 // Initialize telemetry first, before any other imports
 import { initializeInstrumentation } from './telemetry/instrumentation.js';
-import { initializeLogging } from './telemetry/logger.js';
+import { getLogger } from './telemetry/logger.js';
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 // Import the server instance from the hotel-mcp module
 import { get_server as get_standard_server } from './hotel-mcp/server/standard.js';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SERVICE_NAME } from './version.js';
 
 // Initialize telemetry and logging
 const instrumentation = initializeInstrumentation();
-const logger = initializeLogging(process.env.OTEL_SERVICE_NAME || 'mcp-server');
+const logger = getLogger('hotel-booking-mcp');
 
 // Main function should take an optional command line argument to choose the server type
 async function main() {
@@ -55,7 +56,7 @@ async function main() {
       status: 'ready',
       transport: 'stdio',
       telemetryEnabled: process.env.OTEL_ENABLED === 'true',
-      serviceName: process.env.OTEL_SERVICE_NAME || 'mcp-server',
+      serviceName: SERVICE_NAME,
       endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'not_configured'
     });
     
