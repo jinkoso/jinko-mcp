@@ -259,9 +259,6 @@ export class UnifiedLogger {
 export class UnifiedMetrics {
   private config: TelemetryConfig;
   private resource: OTLPResource;
-  private counters: Map<string, { value: number; attributes: Record<string, string> }> = new Map();
-  private histograms: Map<string, { values: number[]; attributes: Record<string, string> }> = new Map();
-  private exportTimeout: any = null;
 
   constructor(config: Partial<TelemetryConfig> = {}) {
     this.config = { ...defaultConfig, ...config };
@@ -274,144 +271,67 @@ export class UnifiedMetrics {
       ],
     };
 
-    // Note: Periodic export removed to avoid global scope issues in Cloudflare Workers
-    // Export will happen on-demand when metrics are recorded
-  }
-
-  private createMetricKey(name: string, attributes: Record<string, string>): string {
-    const attrStr = Object.entries(attributes)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${k}=${v}`)
-      .join(',');
-    return `${name}|${attrStr}`;
+    // Immediate export - no batching or timers to avoid Cloudflare Workers global scope issues
   }
 
   incrementCounter(name: string, value: number = 1, attributes: Record<string, string> = {}): void {
-    const key = this.createMetricKey(name, attributes);
-    const existing = this.counters.get(key);
-    
-    if (existing) {
-      existing.value += value;
-    } else {
-      this.counters.set(key, { value, attributes });
-    }
-    
-    this.scheduleExport();
+    this.exportCounter(name, value, attributes);
   }
 
   recordHistogramValue(name: string, value: number, attributes: Record<string, string> = {}): void {
-    const key = this.createMetricKey(name, attributes);
-    const existing = this.histograms.get(key);
-    
-    if (existing) {
-      existing.values.push(value);
-    } else {
-      this.histograms.set(key, { values: [value], attributes });
-    }
-    
-    this.scheduleExport();
+    this.exportHistogram(name, value, attributes);
   }
 
-  private scheduleExport(): void {
-    // Debounce exports to avoid too frequent calls
-    if (this.exportTimeout) {
-      clearTimeout(this.exportTimeout);
-    }
-    
-    this.exportTimeout = setTimeout(() => {
-      this.exportMetrics().catch(console.error);
-    }, 5000); // Export after 5 seconds of inactivity
-  }
-
-  private async exportMetrics(): Promise<void> {
-    if (this.counters.size === 0 && this.histograms.size === 0) {
-      return;
-    }
-
-    const metrics: OTLPMetric[] = [];
+  private async exportCounter(name: string, value: number, attributes: Record<string, string>): Promise<void> {
     const now = Date.now() * 1000000; // Convert to nanoseconds
-
-    // Export counters
-    const counterGroups = new Map<string, Array<{ key: string; data: { value: number; attributes: Record<string, string> } }>>();
     
-    for (const [key, data] of this.counters.entries()) {
-      const [name] = key.split('|');
-      if (!counterGroups.has(name)) {
-        counterGroups.set(name, []);
-      }
-      counterGroups.get(name)!.push({ key, data });
-    }
-
-    for (const [name, entries] of counterGroups.entries()) {
-      const dataPoints: OTLPMetricDataPoint[] = entries.map(({ data }) => ({
-        timeUnixNano: now.toString(),
-        value: data.value,
-        attributes: Object.entries(data.attributes).map(([k, v]) => ({
-          key: k,
-          value: { stringValue: v }
-        })),
-      }));
-
-      metrics.push({
-        name,
-        description: `Counter metric: ${name}`,
-        sum: {
-          dataPoints,
-          aggregationTemporality: 2, // Cumulative
-          isMonotonic: true,
-        },
-      });
-    }
-
-    // Export histograms
-    const histogramGroups = new Map<string, Array<{ key: string; data: { values: number[]; attributes: Record<string, string> } }>>();
-    
-    for (const [key, data] of this.histograms.entries()) {
-      const [name] = key.split('|');
-      if (!histogramGroups.has(name)) {
-        histogramGroups.set(name, []);
-      }
-      histogramGroups.get(name)!.push({ key, data });
-    }
-
-    for (const [name, entries] of histogramGroups.entries()) {
-      const dataPoints = entries.map(({ data }) => {
-        const values = data.values;
-        const count = values.length;
-        const sum = values.reduce((a, b) => a + b, 0);
-        
-        // Simple bucket boundaries
-        const bounds = [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0];
-        const bucketCounts = bounds.map(bound => 
-          values.filter(v => v <= bound).length.toString()
-        );
-        bucketCounts.push(count.toString()); // +Inf bucket
-
-        return {
+    const metric: OTLPMetric = {
+      name,
+      description: `Counter metric: ${name}`,
+      sum: {
+        dataPoints: [{
           timeUnixNano: now.toString(),
-          count: count.toString(),
-          sum,
-          bucketCounts,
-          explicitBounds: bounds,
-          attributes: Object.entries(data.attributes).map(([k, v]) => ({
+          value,
+          attributes: Object.entries(attributes).map(([k, v]) => ({
             key: k,
             value: { stringValue: v }
           })),
-        };
-      });
+        }],
+        aggregationTemporality: 1, // Cumulative
+        isMonotonic: true,
+      },
+    };
 
-      metrics.push({
-        name,
-        description: `Histogram metric: ${name}`,
-        unit: name.includes('duration') ? 's' : undefined,
-        histogram: {
-          dataPoints,
-          aggregationTemporality: 2, // Cumulative
-        },
-      });
-    }
+    await this.sendMetrics([metric]);
+  }
 
-    // Send to OTLP collector
+  private async exportHistogram(name: string, value: number, attributes: Record<string, string>): Promise<void> {
+    const now = Date.now() * 1000000; // Convert to nanoseconds
+    
+    const metric: OTLPMetric = {
+      name,
+      description: `Histogram metric: ${name}`,
+      unit: name.includes('duration') ? 's' : undefined,
+      histogram: {
+        dataPoints: [{
+          timeUnixNano: now.toString(),
+          count: '1',
+          sum: value,
+          bucketCounts: ['0', '1'], // Simple bucket: one value
+          explicitBounds: [value],
+          attributes: Object.entries(attributes).map(([k, v]) => ({
+            key: k,
+            value: { stringValue: v }
+          })),
+        }],
+        aggregationTemporality: 1, // Cumulative
+      },
+    };
+
+    await this.sendMetrics([metric]);
+  }
+
+  private async sendMetrics(metrics: OTLPMetric[]): Promise<void> {
     const payload = {
       resourceMetrics: [{
         resource: this.resource,
@@ -437,10 +357,6 @@ export class UnifiedMetrics {
 
       if (!response.ok) {
         console.error(`Failed to send metrics: ${response.status} ${response.statusText}`);
-      } else {
-        // Clear exported metrics
-        this.counters.clear();
-        this.histograms.clear();
       }
     } catch (error) {
       console.error('Error sending metrics to OTLP collector:', error);
@@ -455,13 +371,11 @@ export class UnifiedMetrics {
 
   // Async helper methods for OTLP export
   async recordCounter(name: string, value: number, attributes: Record<string, string> = {}): Promise<void> {
-    this.incrementCounter(name, value, attributes);
-    await this.exportMetrics();
+    await this.exportCounter(name, value, attributes);
   }
 
   async recordHistogram(name: string, value: number, attributes: Record<string, string> = {}): Promise<void> {
-    this.recordHistogramValue(name, value, attributes);
-    await this.exportMetrics();
+    await this.exportHistogram(name, value, attributes);
   }
 
   private sanitizeEndpoint(endpoint: string): string {
@@ -515,7 +429,7 @@ export class UnifiedMetrics {
   }
 
   async shutdown(): Promise<void> {
-    await this.exportMetrics();
+    // No batching to flush - immediate export means nothing to do
   }
 }
 
