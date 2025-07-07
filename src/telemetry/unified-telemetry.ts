@@ -312,7 +312,7 @@ export class UnifiedMetrics {
       sum: {
         dataPoints: [{
           timeUnixNano: now.toString(),
-          asInt: value,
+          asDouble: value,
           attributes: Object.entries(enrichedAttributes).map(([k, v]) => ({
             key: k,
             value: { stringValue: v }
