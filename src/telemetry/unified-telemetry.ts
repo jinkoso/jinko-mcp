@@ -261,6 +261,7 @@ export class UnifiedMetrics {
   private resource: OTLPResource;
   private counters: Map<string, { value: number; attributes: Record<string, string> }> = new Map();
   private histograms: Map<string, { values: number[]; attributes: Record<string, string> }> = new Map();
+  private exportTimeout: any = null;
 
   constructor(config: Partial<TelemetryConfig> = {}) {
     this.config = { ...defaultConfig, ...config };
@@ -273,8 +274,8 @@ export class UnifiedMetrics {
       ],
     };
 
-    // Start periodic export
-    setInterval(() => this.exportMetrics(), 30000); // Export every 30 seconds
+    // Note: Periodic export removed to avoid global scope issues in Cloudflare Workers
+    // Export will happen on-demand when metrics are recorded
   }
 
   private createMetricKey(name: string, attributes: Record<string, string>): string {
@@ -294,6 +295,8 @@ export class UnifiedMetrics {
     } else {
       this.counters.set(key, { value, attributes });
     }
+    
+    this.scheduleExport();
   }
 
   recordHistogramValue(name: string, value: number, attributes: Record<string, string> = {}): void {
@@ -305,6 +308,19 @@ export class UnifiedMetrics {
     } else {
       this.histograms.set(key, { values: [value], attributes });
     }
+    
+    this.scheduleExport();
+  }
+
+  private scheduleExport(): void {
+    // Debounce exports to avoid too frequent calls
+    if (this.exportTimeout) {
+      clearTimeout(this.exportTimeout);
+    }
+    
+    this.exportTimeout = setTimeout(() => {
+      this.exportMetrics().catch(console.error);
+    }, 5000); // Export after 5 seconds of inactivity
   }
 
   private async exportMetrics(): Promise<void> {

@@ -10,9 +10,17 @@ import { get_server as get_standard_server } from './hotel-mcp/server/standard.j
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SERVICE_NAME } from './version.js';
 
-// Initialize telemetry and logging
-const telemetry = initializeTelemetry();
-const logger = getLogger();
+// Lazy telemetry initialization to avoid global scope issues in Cloudflare Workers
+let telemetry: any = null;
+let logger: any = null;
+
+function initTelemetryIfNeeded() {
+  if (!telemetry) {
+    telemetry = initializeTelemetry();
+    logger = getLogger();
+  }
+  return { telemetry, logger };
+}
 
 // Main function should take an optional command line argument to choose the server type
 async function main() {
@@ -20,7 +28,7 @@ async function main() {
   const startTime = Date.now();
   
   try {
-    await logger.info('Starting MCP server', { 
+    await initTelemetryIfNeeded().logger.info('Starting MCP server', { 
       operation: 'server_startup',
       serverType,
       timestamp: new Date().toISOString(),
@@ -48,7 +56,7 @@ async function main() {
     const initializationTime = Date.now() - startTime;
     
     // Send server initialization telemetry to log collector
-    await logger.info('MCP server initialized successfully', {
+    await initTelemetryIfNeeded().logger.info('MCP server initialized successfully', {
       operation: 'server_initialized',
       serverType,
       initializationTime,
@@ -61,7 +69,7 @@ async function main() {
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    await logger.error('Error starting server', { 
+    await initTelemetryIfNeeded().logger.error('Error starting server', { 
       operation: 'server_initialization_failed',
       error: errorMessage,
       serverType: process.argv[2] || 'standard'
