@@ -20,7 +20,8 @@ interface OTLPLogRecord {
 
 interface OTLPMetricDataPoint {
   timeUnixNano: string;
-  value: number;
+  asInt?: number;
+  asDouble?: number;
   attributes: Array<{ key: string; value: { stringValue: string } }>;
 }
 
@@ -33,12 +34,19 @@ interface OTLPMetric {
     aggregationTemporality: number;
     isMonotonic: boolean;
   };
+  gauge?: {
+    dataPoints: Array<{
+      timeUnixNano: string;
+      asDouble: number;
+      attributes: Array<{ key: string; value: { stringValue: string } }>;
+    }>;
+  };
   histogram?: {
     dataPoints: Array<{
       timeUnixNano: string;
-      count: string;
+      count: number;
       sum: number;
-      bucketCounts: string[];
+      bucketCounts: number[];
       explicitBounds: number[];
       attributes: Array<{ key: string; value: { stringValue: string } }>;
     }>;
@@ -278,12 +286,17 @@ export class UnifiedMetrics {
     this.exportCounter(name, value, attributes);
   }
 
+  recordGaugeValue(name: string, value: number, unit: string, attributes: Record<string, string> = {}): void {
+    this.exportGauge(name, value, unit, attributes);
+  }
+
   recordHistogramValue(name: string, value: number, attributes: Record<string, string> = {}): void {
     this.exportHistogram(name, value, attributes);
   }
 
   private async exportCounter(name: string, value: number, attributes: Record<string, string>): Promise<void> {
     const now = Date.now() * 1000000; // Convert to nanoseconds
+    const startTime = (Date.now() - 60000) * 1000000; // Start time 1 minute ago
     
     // Add version information to attributes
     const enrichedAttributes = {
@@ -295,16 +308,17 @@ export class UnifiedMetrics {
     const metric: OTLPMetric = {
       name,
       description: `Counter metric: ${name}`,
+      unit: "1",
       sum: {
         dataPoints: [{
           timeUnixNano: now.toString(),
-          value,
+          asInt: value,
           attributes: Object.entries(enrichedAttributes).map(([k, v]) => ({
             key: k,
             value: { stringValue: v }
           })),
         }],
-        aggregationTemporality: 1, // Cumulative
+        aggregationTemporality: 2, // Cumulative
         isMonotonic: true,
       },
     };
@@ -312,7 +326,7 @@ export class UnifiedMetrics {
     await this.sendMetrics([metric]);
   }
 
-  private async exportHistogram(name: string, value: number, attributes: Record<string, string>): Promise<void> {
+  private async exportGauge(name: string, value: number, unit: string, attributes: Record<string, string>): Promise<void> {
     const now = Date.now() * 1000000; // Convert to nanoseconds
     
     // Add version information to attributes
@@ -324,21 +338,64 @@ export class UnifiedMetrics {
     
     const metric: OTLPMetric = {
       name,
-      description: `Histogram metric: ${name}`,
-      unit: name.includes('duration') ? 's' : undefined,
-      histogram: {
+      description: `Gauge metric: ${name}`,
+      unit: unit,
+      gauge: {
         dataPoints: [{
           timeUnixNano: now.toString(),
-          count: '1',
-          sum: value,
-          bucketCounts: ['0', '1'], // Simple bucket: one value
-          explicitBounds: [value],
+          asDouble: value,
           attributes: Object.entries(enrichedAttributes).map(([k, v]) => ({
             key: k,
             value: { stringValue: v }
           })),
         }],
-        aggregationTemporality: 1, // Cumulative
+      },
+    };
+
+    await this.sendMetrics([metric]);
+  }
+
+  private async exportHistogram(name: string, value: number, attributes: Record<string, string>): Promise<void> {
+    const now = Date.now() * 1000000; // Convert to nanoseconds
+    const startTime = (Date.now() - 60000) * 1000000; // Start time 1 minute ago
+    
+    // Add version information to attributes
+    const enrichedAttributes = {
+      ...attributes,
+      version: this.config.serviceVersion,
+      service: this.config.serviceName,
+    };
+    
+    // Create proper histogram buckets based on the value
+    const buckets = [10, 50, 100, 500, 1000, 5000];
+    const bucketCounts = new Array(buckets.length + 1).fill(0);
+    
+    // Find which bucket this value falls into
+    let bucketIndex = buckets.findIndex(bound => value <= bound);
+    if (bucketIndex === -1) bucketIndex = buckets.length; // Last bucket (infinity)
+    
+    // Increment the appropriate bucket and all previous buckets (cumulative)
+    for (let i = bucketIndex; i < bucketCounts.length; i++) {
+      bucketCounts[i] = 1;
+    }
+    
+    const metric: OTLPMetric = {
+      name,
+      description: `Histogram metric: ${name}`,
+      unit: name.includes('duration') || name.includes('time') ? 'ms' : '1',
+      histogram: {
+        dataPoints: [{
+          timeUnixNano: now.toString(),
+          count: 1,
+          sum: value,
+          bucketCounts,
+          explicitBounds: buckets,
+          attributes: Object.entries(enrichedAttributes).map(([k, v]) => ({
+            key: k,
+            value: { stringValue: v }
+          })),
+        }],
+        aggregationTemporality: 2, // Cumulative
       },
     };
 
@@ -369,8 +426,12 @@ export class UnifiedMetrics {
         body: JSON.stringify(payload),
       });
 
+      console.error(JSON.stringify(payload));
+
       if (!response.ok) {
         console.error(`Failed to send metrics: ${response.status} ${response.statusText}`);
+      } else {
+        console.error(`Metrics sent successfully: ${response.status}`);
       }
     } catch (error) {
       console.error('Error sending metrics to OTLP collector:', error);
@@ -378,14 +439,18 @@ export class UnifiedMetrics {
   }
 
   // Convenience methods for common metrics
-  recordToolCall(toolName: string, duration: number, status: string): void {
-    this.incrementCounter('mcp_tool_calls_total', 1, { tool_name: toolName, status });
-    this.recordHistogramValue('mcp_tool_duration_seconds', duration, { tool_name: toolName, status });
+  recordToolCall(toolName: string, duration_ms: number, status: string): void {
+    this.incrementCounter('mcp_tool_call', 1, { tool_name: toolName, status });
+    this.recordGaugeValue('mcp_tool_duration', duration_ms, "ms", { tool_name: toolName, status });
   }
 
   // Async helper methods for OTLP export
   async recordCounter(name: string, value: number, attributes: Record<string, string> = {}): Promise<void> {
     await this.exportCounter(name, value, attributes);
+  }
+
+  async recordGauge(name: string, value: number, unit: string, attributes: Record<string, string> = {}): Promise<void> {
+    await this.exportGauge(name, value, unit, attributes);
   }
 
   async recordHistogram(name: string, value: number, attributes: Record<string, string> = {}): Promise<void> {
@@ -414,28 +479,28 @@ export class UnifiedMetrics {
       status: params.status
     });
     
-    await this.recordHistogram('hotel_search_nights', params.nights, {
+    await this.recordGauge('hotel_search_nights', params.nights, "1", {
       location: params.location_name || 'unknown'
     });
     
-    await this.recordHistogram('hotel_search_travelers', params.total_travelers, {
+    await this.recordGauge('hotel_search_travelers', params.total_travelers, "1", {
       location: params.location_name || 'unknown'
     });
   }
 
   async recordHotelSearchResults(count: number): Promise<void> {
-    await this.recordHistogram('hotel_search_results_count', count);
+    await this.recordGauge('hotel_search_results_count', count, "1");
     await this.recordCounter('hotel_search_results_total', count);
   }
 
-  async recordApiCall(endpoint: string, method: string, duration: number, status: string): Promise<void> {
+  async recordApiCall(endpoint: string, method: string, duration_ms: number, status: string): Promise<void> {
     await this.recordCounter('api_calls_total', 1, {
       endpoint: this.sanitizeEndpoint(endpoint),
       method,
       status
     });
     
-    await this.recordHistogram('api_call_duration_ms', duration, {
+    await this.recordGauge('api_call_duration', duration_ms, 'ms', {
       endpoint: this.sanitizeEndpoint(endpoint),
       method,
       status

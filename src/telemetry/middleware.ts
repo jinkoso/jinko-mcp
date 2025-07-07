@@ -28,12 +28,12 @@ export class TelemetryMiddleware {
 
       try {
         const result = await toolFunction.apply(this, args);
-        const duration = (Date.now() - startTime) / 1000;
-        this.metrics.recordToolCall(toolName, duration, 'success');
+        const duration_ms = Date.now() - startTime;
+        this.metrics.recordToolCall(toolName, duration_ms, 'success');
         return result;
       } catch (error) {
-        const duration = (Date.now() - startTime) / 1000;
-        this.metrics.recordToolCall(toolName, duration, 'error');
+        const duration_ms = Date.now() - startTime;
+        this.metrics.recordToolCall(toolName, duration_ms, 'error');
         throw error;
       }
     }) as T;
@@ -54,16 +54,16 @@ export class TelemetryMiddleware {
    * Complete a tool execution context
    */
   completeToolContext(context: ToolExecutionContext, result?: any, error?: Error): void {
-    const duration = (Date.now() - context.startTime) / 1000;
+    const duration_ms = Date.now() - context.startTime;
     const status = error ? 'error' : 'success';
-    this.metrics.recordToolCall(context.toolName, duration, status);
+    this.metrics.recordToolCall(context.toolName, duration_ms, status);
   }
 
   /**
    * Record API call metrics
    */
-  recordApiCall(endpoint: string, method: string, duration: number, status: string): void {
-    this.metrics.recordApiCall(endpoint, method, duration, status);
+  recordApiCall(endpoint: string, method: string, duration_ms: number, status: string): void {
+    this.metrics.recordApiCall(endpoint, method, duration_ms, status);
   }
 
   /**
