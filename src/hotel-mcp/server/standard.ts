@@ -216,9 +216,22 @@ supportedLanguages.forEach(lang => {
 });
 
 export async function get_server() {
+  // get the project version from package.json
+  logger.info('Initializing standard MCP server in async mode.', {
+    operation: 'server_initialization',
+    timestamp: new Date().toISOString(),
+    nodeVersion: process.version,
+    platform: process.platform
+  });
   return server;
 }
 
 export function get_sync_server() {
+  logger.info('Initializing standard MCP server in sync mode.', {
+    operation: 'server_initialization',
+    timestamp: new Date().toISOString(),
+    nodeVersion: process.version,
+    platform: process.platform
+  });
   return server;
 }

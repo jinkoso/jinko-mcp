@@ -7,7 +7,6 @@ import { initializeLogging } from './telemetry/logger.js';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 // Import the server instance from the hotel-mcp module
-import { get_server as get_customer_server } from './hotel-mcp/server/customer.js';
 import { get_server as get_standard_server } from './hotel-mcp/server/standard.js';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
@@ -36,14 +35,7 @@ async function main() {
       process.exit(1);
     }
     let server: McpServer | null = null;
-    if (serverType === "customer") {
-      // Create customer server instance
-      server = await get_customer_server();
-    }
-    if (serverType === "standard") {
-      // Create standard server instance
-      server = await get_standard_server();
-    }
+    server = await get_standard_server();
 
     if (!server) {
       console.error("Failed to create server instance.");
