@@ -1,32 +1,75 @@
 /**
- * Main telemetry module exports - Metrics only
+ * Unified telemetry module exports
+ * Single implementation that works in all environments
  */
-export { MCPInstrumentation, getInstrumentation, initializeInstrumentation } from './instrumentation.js';
-export { MCPMetrics } from './metrics.js';
-export { MCPLogger, getLogger, initializeLogging, LogLevel, LogContext } from './logger.js';
-export { TelemetryMiddleware, ToolExecutionContext } from './middleware.js';
-export { TelemetryConfig, defaultTelemetryConfig } from './config.js';
 
-// Import the classes for internal use
-import { MCPInstrumentation, initializeInstrumentation } from './instrumentation.js';
-import { MCPMetrics } from './metrics.js';
-import { TelemetryMiddleware } from './middleware.js';
+import { 
+  UnifiedInstrumentation, 
+  UnifiedLogger, 
+  UnifiedMetrics, 
+  LogLevel 
+} from './unified-telemetry.js';
 
-// Global telemetry middleware instance
-let globalTelemetryMiddleware: TelemetryMiddleware | null = null;
+export { 
+  UnifiedInstrumentation, 
+  UnifiedLogger, 
+  UnifiedMetrics, 
+  LogLevel 
+};
 
-export function initializeTelemetryMiddleware(): TelemetryMiddleware {
-  if (!globalTelemetryMiddleware) {
-    const instrumentation = initializeInstrumentation();
-    const metrics = new MCPMetrics(instrumentation.getMeter());
-    globalTelemetryMiddleware = new TelemetryMiddleware(metrics);
-  }
-  return globalTelemetryMiddleware;
+export { TelemetryMiddleware } from './middleware.js';
+
+// Configuration
+export interface TelemetryConfig {
+  endpoint?: string;
+  serviceName?: string;
+  serviceVersion?: string;
+  headers?: Record<string, string>;
+  timeout?: number;
 }
 
-export function getTelemetryMiddleware(): TelemetryMiddleware {
-  if (!globalTelemetryMiddleware) {
-    return initializeTelemetryMiddleware();
+// Default configuration from environment
+export const defaultTelemetryConfig: TelemetryConfig = {
+  endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://log.api.jinko.so',
+  headers: process.env.OTEL_EXPORTER_OTLP_HEADERS 
+    ? parseHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS)
+    : {},
+  timeout: parseInt(process.env.OTEL_EXPORTER_OTLP_TIMEOUT || '10000'),
+};
+
+function parseHeaders(headersString: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  headersString.split(',').forEach(header => {
+    const [key, value] = header.split('=');
+    if (key && value) {
+      headers[key.trim()] = value.trim();
+    }
+  });
+  return headers;
+}
+
+// Global telemetry instance
+let globalInstrumentation: UnifiedInstrumentation | null = null;
+
+export function initializeTelemetry(config: TelemetryConfig = {}): UnifiedInstrumentation {
+  if (!globalInstrumentation) {
+    const finalConfig = { ...defaultTelemetryConfig, ...config };
+    globalInstrumentation = new UnifiedInstrumentation(finalConfig);
   }
-  return globalTelemetryMiddleware;
+  return globalInstrumentation;
+}
+
+export function getTelemetry(): UnifiedInstrumentation {
+  if (!globalInstrumentation) {
+    return initializeTelemetry();
+  }
+  return globalInstrumentation;
+}
+
+export function getLogger(): UnifiedLogger {
+  return getTelemetry().getLogger();
+}
+
+export function getMetrics(): UnifiedMetrics {
+  return getTelemetry().getMetrics();
 }

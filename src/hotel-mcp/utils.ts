@@ -5,7 +5,7 @@ import fs from "fs";
 import yaml from "js-yaml";
 import { API_BASE_URL, FACILITIES_PATH, MAX_QUOTE_POLL_ATTEMPTS, QUOTE_POLL_INTERVAL_MS } from "./config.js";
 import { session } from "./state.js";
-import { getLogger, getTelemetryMiddleware } from "../telemetry/index.js";
+import { getLogger, getMetrics } from "../telemetry/index.js";
 
 /**
  * Load facilities data from JSON file
@@ -39,6 +39,7 @@ export async function makeApiRequest<T>(
 ): Promise<T | null> {
   const url = `${API_BASE_URL}${endpoint}`;
   const logger = getLogger();
+  const metrics = getMetrics();
   
   const startTime = Date.now();
   
@@ -64,7 +65,7 @@ export async function makeApiRequest<T>(
     headers["X-Country-Code"] = session.country_code;
   }
 
-  logger.logApiCall(endpoint, method);
+  await logger.logApiCall(endpoint, method);
 
   try {
     const options: RequestInit = {
@@ -81,31 +82,28 @@ export async function makeApiRequest<T>(
     
     if (!response.ok) {
       // Record API metrics
-      const telemetryMiddleware = getTelemetryMiddleware();
-      telemetryMiddleware.recordApiCall(endpoint, method, duration, 'error');
+      await metrics.recordApiCall(endpoint, method, duration * 1000, 'error'); // Convert to ms
       
-      logger.logApiResult(endpoint, method, duration, response.status, `API call failed: ${response.status}`);
+      await logger.logApiResult(endpoint, method, duration, response.status, `API call failed: ${response.status}`);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
     const result = (await response.json()) as T;
     
     // Record successful API metrics
-    const telemetryMiddleware = getTelemetryMiddleware();
-    telemetryMiddleware.recordApiCall(endpoint, method, duration, 'success');
+    await metrics.recordApiCall(endpoint, method, duration * 1000, 'success'); // Convert to ms
     
-    logger.logApiResult(endpoint, method, duration, response.status);
+    await logger.logApiResult(endpoint, method, duration, response.status);
     
     return result;
   } catch (error) {
     const duration = (Date.now() - startTime) / 1000;
     
     // Record error API metrics
-    const telemetryMiddleware = getTelemetryMiddleware();
-    telemetryMiddleware.recordApiCall(endpoint, method, duration, 'error');
+    await metrics.recordApiCall(endpoint, method, duration * 1000, 'error'); // Convert to ms
     
-    logger.logApiResult(endpoint, method, duration, 0, `API call error: ${(error as Error).message}`);
-    logger.logError(error as Error, { endpoint, method });
+    await logger.logApiResult(endpoint, method, duration, 0, `API call error: ${(error as Error).message}`);
+    await logger.logError(error as Error, { endpoint, method });
     return null;
   }
 }

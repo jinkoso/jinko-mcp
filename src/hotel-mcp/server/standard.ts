@@ -8,12 +8,24 @@ import { getFacilitiesByLanguage } from "../facilities.js";
 import { getHotelDetails, loadMoreHotels, searchHotels } from "../tools/standard/search.js";
 import { bookHotel } from "../tools/standard/booking.js";
 import { autocompletePlaces } from "../tools/standard/places.js";
-import { initializeTelemetryMiddleware, initializeLogging } from "../../telemetry/index.js";
+import { initializeTelemetry, getLogger, getMetrics, TelemetryMiddleware } from "../../telemetry/index.js";
 
 
-// Initialize telemetry
-const logger = initializeLogging('hotel-booking-mcp');
-const telemetryMiddleware = initializeTelemetryMiddleware();
+// Lazy telemetry initialization to avoid global scope issues in Cloudflare Workers
+let telemetry: any = null;
+let logger: any = null;
+let metrics: any = null;
+let telemetryMiddleware: any = null;
+
+function getTelemetry() {
+  if (!telemetry) {
+    telemetry = initializeTelemetry();
+    logger = getLogger();
+    metrics = getMetrics();
+    telemetryMiddleware = new TelemetryMiddleware(metrics);
+  }
+  return { telemetry, logger, metrics, telemetryMiddleware };
+}
 
 // Create server instance
 const server = new McpServer({
@@ -44,7 +56,7 @@ matching places with their details and precise coordinates.
   query: z.string().describe("User's input for place search"),
   language: z.string().optional().default("en").describe("Language for the place search"),
 },
-telemetryMiddleware.instrumentTool("find-place", autocompletePlaces)
+getTelemetry().telemetryMiddleware.instrumentTool("find-place", autocompletePlaces)
 );
 
 /**
@@ -74,7 +86,7 @@ retrieve them using the load-more-hotels tool with the returned session_id.
       "Facility IDs to filter hotels by, the IDs can be inferred with facilities resource."
     ),
   },
-  telemetryMiddleware.instrumentTool("search-hotels", searchHotels)
+  getTelemetry().telemetryMiddleware.instrumentTool("search-hotels", searchHotels)
 );
 
 server.tool(
@@ -89,7 +101,7 @@ further pagination is possible.
   {
     session_id: z.string().describe("Session ID from a previous search-hotels or load-more-hotels response"),
   },
-  telemetryMiddleware.instrumentTool("load-more-hotels", loadMoreHotels)
+  getTelemetry().telemetryMiddleware.instrumentTool("load-more-hotels", loadMoreHotels)
 )
 
 /**
@@ -109,7 +121,7 @@ to provide them with all available options and complete booking information.
     session_id: z.string().describe("The session ID from a previous search"),
     hotel_id: z.string().describe("ID of the hotel to get details for"),
   },
-  telemetryMiddleware.instrumentTool("get-hotel-details", getHotelDetails)
+  getTelemetry().telemetryMiddleware.instrumentTool("get-hotel-details", getHotelDetails)
 );
 
 server.tool(
@@ -129,7 +141,7 @@ booking details such as hotel name, check-in/out dates, and total price.
     hotel_id: z.string().describe("ID of the hotel to book"),
     rate_id: z.string().describe("ID of the specific rate option the user has selected"),
   },
-  telemetryMiddleware.instrumentTool("book-hotel", bookHotel),
+  getTelemetry().telemetryMiddleware.instrumentTool("book-hotel", bookHotel),
 );
 
 /**
@@ -216,9 +228,22 @@ supportedLanguages.forEach(lang => {
 });
 
 export async function get_server() {
+  // get the project version from package.json
+  getTelemetry().logger.info('Initializing standard MCP server in async mode.', {
+    operation: 'server_initialization',
+    timestamp: new Date().toISOString(),
+    nodeVersion: process.version,
+    platform: process.platform
+  });
   return server;
 }
 
 export function get_sync_server() {
+  getTelemetry().logger.info('Initializing standard MCP server in sync mode.', {
+    operation: 'server_initialization',
+    timestamp: new Date().toISOString(),
+    nodeVersion: process.version,
+    platform: process.platform
+  });
   return server;
 }

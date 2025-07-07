@@ -1,19 +1,26 @@
 #!/usr/bin/env node
 
 // Initialize telemetry first, before any other imports
-import { initializeInstrumentation } from './telemetry/instrumentation.js';
-import { initializeLogging } from './telemetry/logger.js';
+import { initializeTelemetry, getLogger } from './telemetry/index.js';
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 // Import the server instance from the hotel-mcp module
-import { get_server as get_customer_server } from './hotel-mcp/server/customer.js';
 import { get_server as get_standard_server } from './hotel-mcp/server/standard.js';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SERVICE_NAME } from './version.js';
 
-// Initialize telemetry and logging
-const instrumentation = initializeInstrumentation();
-const logger = initializeLogging(process.env.OTEL_SERVICE_NAME || 'mcp-server');
+// Lazy telemetry initialization to avoid global scope issues in Cloudflare Workers
+let telemetry: any = null;
+let logger: any = null;
+
+function initTelemetryIfNeeded() {
+  if (!telemetry) {
+    telemetry = initializeTelemetry();
+    logger = getLogger();
+  }
+  return { telemetry, logger };
+}
 
 // Main function should take an optional command line argument to choose the server type
 async function main() {
@@ -21,7 +28,7 @@ async function main() {
   const startTime = Date.now();
   
   try {
-    logger.info('Starting MCP server', { 
+    await initTelemetryIfNeeded().logger.info('Starting MCP server', { 
       operation: 'server_startup',
       serverType,
       timestamp: new Date().toISOString(),
@@ -36,14 +43,7 @@ async function main() {
       process.exit(1);
     }
     let server: McpServer | null = null;
-    if (serverType === "customer") {
-      // Create customer server instance
-      server = await get_customer_server();
-    }
-    if (serverType === "standard") {
-      // Create standard server instance
-      server = await get_standard_server();
-    }
+    server = await get_standard_server();
 
     if (!server) {
       console.error("Failed to create server instance.");
@@ -56,20 +56,20 @@ async function main() {
     const initializationTime = Date.now() - startTime;
     
     // Send server initialization telemetry to log collector
-    logger.info('MCP server initialized successfully', {
+    await initTelemetryIfNeeded().logger.info('MCP server initialized successfully', {
       operation: 'server_initialized',
       serverType,
       initializationTime,
       status: 'ready',
       transport: 'stdio',
       telemetryEnabled: process.env.OTEL_ENABLED === 'true',
-      serviceName: process.env.OTEL_SERVICE_NAME || 'mcp-server',
+      serviceName: SERVICE_NAME,
       endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'not_configured'
     });
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Error starting server', { 
+    await initTelemetryIfNeeded().logger.error('Error starting server', { 
       operation: 'server_initialization_failed',
       error: errorMessage,
       serverType: process.argv[2] || 'standard'
