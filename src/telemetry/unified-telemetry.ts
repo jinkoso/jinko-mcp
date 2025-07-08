@@ -1,6 +1,7 @@
 /**
- * Unified telemetry implementation using HTTP OTLP exports
+ * Clean telemetry implementation using plain HTTP OTLP exports
  * Works in both Node.js and Cloudflare Workers environments
+ * Optimized with batching for counters and immediate export for latency
  */
 
 import { VERSION_INFO } from '../version.js';
@@ -19,27 +20,23 @@ interface OTLPLogRecord {
 }
 
 interface OTLPMetricDataPoint {
+  startTimeUnixNano?: string;
   timeUnixNano: string;
-  asInt?: number;
-  asDouble?: number;
+  asDouble: number;
   attributes: Array<{ key: string; value: { stringValue: string } }>;
 }
 
 interface OTLPMetric {
   name: string;
   description: string;
-  unit?: string;
+  unit: string;
   sum?: {
     dataPoints: OTLPMetricDataPoint[];
     aggregationTemporality: number;
     isMonotonic: boolean;
   };
   gauge?: {
-    dataPoints: Array<{
-      timeUnixNano: string;
-      asDouble: number;
-      attributes: Array<{ key: string; value: { stringValue: string } }>;
-    }>;
+    dataPoints: OTLPMetricDataPoint[];
   };
   histogram?: {
     dataPoints: Array<{
@@ -61,6 +58,7 @@ interface TelemetryConfig {
   serviceVersion: string;
   headers: Record<string, string>;
   timeout: number;
+  batchInterval?: number; // Batching interval for counters in ms
 }
 
 const defaultConfig: TelemetryConfig = {
@@ -69,6 +67,7 @@ const defaultConfig: TelemetryConfig = {
   serviceVersion: VERSION_INFO.version,
   headers: {},
   timeout: 10000,
+  batchInterval: 5000, // 5 seconds batching for counters
 };
 
 // Log levels
@@ -90,8 +89,6 @@ export class UnifiedLogger {
       attributes: [
         { key: 'service.name', value: { stringValue: this.config.serviceName } },
         { key: 'service.version', value: { stringValue: this.config.serviceVersion } },
-        { key: 'telemetry.sdk.name', value: { stringValue: 'jinko-mcp-unified' } },
-        { key: 'telemetry.sdk.version', value: { stringValue: this.config.serviceVersion } },
       ],
     };
   }
@@ -267,23 +264,116 @@ export class UnifiedLogger {
 export class UnifiedMetrics {
   private config: TelemetryConfig;
   private resource: OTLPResource;
+  private startTime: bigint;
+  private instanceId: string;
+  private counters: Map<string, number> = new Map();
+  private pendingCounters: Map<string, { value: number; attributes: Record<string, string> }> = new Map();
+  private batchTimer: any = null;
 
   constructor(config: Partial<TelemetryConfig> = {}) {
     this.config = { ...defaultConfig, ...config };
+    this.startTime = BigInt(Date.now()) * BigInt(1000000);
+    this.instanceId = this.generateInstanceId();
+    
     this.resource = {
       attributes: [
         { key: 'service.name', value: { stringValue: this.config.serviceName } },
         { key: 'service.version', value: { stringValue: this.config.serviceVersion } },
-        { key: 'telemetry.sdk.name', value: { stringValue: 'jinko-mcp-unified' } },
-        { key: 'telemetry.sdk.version', value: { stringValue: this.config.serviceVersion } },
+        { key: 'service.instance.id', value: { stringValue: this.instanceId } },
       ],
     };
 
-    // Immediate export - no batching or timers to avoid Cloudflare Workers global scope issues
+    // Start batching timer for counters (if not in Cloudflare Workers)
+    this.initializeBatching();
+  }
+
+  private generateInstanceId(): string {
+    const hostname = typeof process !== 'undefined' && process.env?.HOSTNAME 
+      ? process.env.HOSTNAME 
+      : 'unknown';
+    const random = Math.random().toString(36).substring(2, 8);
+    return `${hostname}-${random}`;
+  }
+
+  private initializeBatching(): void {
+    // Only enable batching if we're not in Cloudflare Workers (no global timers)
+    if (typeof globalThis !== 'undefined' && typeof globalThis.setTimeout === 'function' && this.config.batchInterval) {
+      this.batchTimer = setInterval(() => {
+        this.flushCounters();
+      }, this.config.batchInterval);
+    }
+  }
+
+  private async flushCounters(): Promise<void> {
+    if (this.pendingCounters.size === 0) return;
+
+    const countersToFlush = new Map(this.pendingCounters);
+    this.pendingCounters.clear();
+
+    const promises = Array.from(countersToFlush.entries()).map(([key, data]) => {
+      const [name] = key.split('|'); // Extract name from key
+      return this.exportCounter(name, data.value, data.attributes);
+    });
+
+    await Promise.allSettled(promises);
   }
 
   incrementCounter(name: string, value: number = 1, attributes: Record<string, string> = {}): void {
+    // For backward compatibility - immediate export
     this.exportCounter(name, value, attributes);
+  }
+
+  /**
+   * Increment a local counter with batching for better performance
+   * Counters are batched and sent periodically
+   */
+  async incrementLocalCounter(name: string, attributes: Record<string, string> = {}): Promise<void> {
+    const currentCount = this.counters.get(name) || 0;
+    const newCount = currentCount + 1;
+    this.counters.set(name, newCount);
+
+    // Create a unique key for this counter + attributes combination
+    const key = `${name}|${JSON.stringify(attributes)}`;
+    
+    if (this.config.batchInterval && this.batchTimer) {
+      // Batch mode: store for later export
+      this.pendingCounters.set(key, { value: newCount, attributes });
+    } else {
+      // Immediate mode: export right away (Cloudflare Workers)
+      await this.recordCounter(name, newCount, attributes);
+    }
+  }
+
+  /**
+   * Record tool call - increments tool_calls_total counter
+   */
+  async recordToolCall(toolName: string, status: 'success' | 'error' = 'success'): Promise<void> {
+    await this.incrementLocalCounter('tool_calls_total', {
+      tool_name: toolName,
+      status,
+      instance_id: this.instanceId,
+    });
+  }
+
+  /**
+   * Record API request - increments api_requests_total counter  
+   */
+  async recordApiRequest(method: string, endpoint: string, status: string): Promise<void> {
+    await this.incrementLocalCounter('api_requests_total', {
+      method: method.toUpperCase(),
+      endpoint: this.sanitizeEndpoint(endpoint),
+      status,
+      instance_id: this.instanceId,
+    });
+  }
+
+  private sanitizeEndpoint(endpoint: string): string {
+    try {
+      const url = new URL(endpoint);
+      return `${url.protocol}//${url.host}${url.pathname}`;
+    } catch {
+      return endpoint.split('?')[0];
+    }
   }
 
   recordGaugeValue(name: string, value: number, unit: string, attributes: Record<string, string> = {}): void {
@@ -295,8 +385,7 @@ export class UnifiedMetrics {
   }
 
   private async exportCounter(name: string, value: number, attributes: Record<string, string>): Promise<void> {
-    const now = Date.now() * 1000000; // Convert to nanoseconds
-    const startTime = (Date.now() - 60000) * 1000000; // Start time 1 minute ago
+    const now = BigInt(Date.now()) * BigInt(1000000); // Convert to nanoseconds
     
     // Add version information to attributes
     const enrichedAttributes = {
@@ -311,6 +400,7 @@ export class UnifiedMetrics {
       unit: "1",
       sum: {
         dataPoints: [{
+          startTimeUnixNano: this.startTime.toString(),
           timeUnixNano: now.toString(),
           asDouble: value,
           attributes: Object.entries(enrichedAttributes).map(([k, v]) => ({
@@ -417,6 +507,9 @@ export class UnifiedMetrics {
     };
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
       const response = await fetch(`${this.config.endpoint}/v1/metrics`, {
         method: 'POST',
         headers: {
@@ -424,22 +517,24 @@ export class UnifiedMetrics {
           ...this.config.headers,
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
-      console.error(JSON.stringify(payload));
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
-        console.error(`Failed to send metrics: ${response.status} ${response.statusText}`);
-      } else {
-        console.error(`Metrics sent successfully: ${response.status}`);
+        console.warn(`Telemetry export failed: ${response.status} ${response.statusText}`);
       }
-    } catch (error) {
-      console.error('Error sending metrics to OTLP collector:', error);
+    } catch (error: any) {
+      // Silently fail for telemetry - don't disrupt main application
+      if (error?.name !== 'AbortError') {
+        console.warn('Telemetry export error:', error?.message || 'Unknown error');
+      }
     }
   }
 
-  // Convenience methods for common metrics
-  recordToolCall(toolName: string, duration_ms: number, status: string): void {
+  // Legacy convenience method - use recordToolCall() instead
+  recordToolCallLegacy(toolName: string, duration_ms: number, status: string): void {
     this.incrementCounter('mcp_tool_call', 1, { tool_name: toolName, status });
     this.recordGaugeValue('mcp_tool_duration', duration_ms, "ms", { tool_name: toolName, status });
   }
@@ -455,15 +550,6 @@ export class UnifiedMetrics {
 
   async recordHistogram(name: string, value: number, attributes: Record<string, string> = {}): Promise<void> {
     await this.exportHistogram(name, value, attributes);
-  }
-
-  private sanitizeEndpoint(endpoint: string): string {
-    try {
-      const url = new URL(endpoint);
-      return `${url.protocol}//${url.host}${url.pathname}`;
-    } catch {
-      return endpoint.split('?')[0];
-    }
   }
 
   // Hotel-specific metrics methods
@@ -493,6 +579,51 @@ export class UnifiedMetrics {
     await this.recordCounter('hotel_search_results_total', count);
   }
 
+  /**
+   * Record tool call with latency - immediate export for latency, batched for count
+   */
+  async recordToolCallWithLatency(toolName: string, duration_ms: number, status: 'success' | 'error' = 'success'): Promise<void> {
+    // Count is batched for efficiency
+    await this.incrementLocalCounter('tool_calls_total', {
+      tool_name: toolName,
+      status,
+      instance_id: this.instanceId,
+    });
+    
+    // Latency is sent immediately (time-sensitive)
+    await this.recordGauge('tool_call_duration', duration_ms, 'ms', {
+      tool_name: toolName,
+      status,
+      instance_id: this.instanceId,
+    });
+  }
+
+  /**
+   * Record API call with latency - immediate export for latency, batched for count
+   */
+  async recordApiCallWithLatency(endpoint: string, method: string, duration_ms: number, statusCode: number): Promise<void> {
+    const status = statusCode >= 400 ? 'error' : 'success';
+    const sanitizedEndpoint = this.sanitizeEndpoint(endpoint);
+    
+    // Count is batched for efficiency
+    await this.incrementLocalCounter('api_requests_total', {
+      endpoint: sanitizedEndpoint,
+      method: method.toUpperCase(),
+      status,
+      status_code: statusCode.toString(),
+      instance_id: this.instanceId,
+    });
+    
+    // Latency is sent immediately (time-sensitive)
+    await this.recordGauge('api_request_duration', duration_ms, 'ms', {
+      endpoint: sanitizedEndpoint,
+      method: method.toUpperCase(),
+      status,
+      status_code: statusCode.toString(),
+      instance_id: this.instanceId,
+    });
+  }
+
   async recordApiCall(endpoint: string, method: string, duration_ms: number, status: string): Promise<void> {
     await this.recordCounter('api_calls_total', 1, {
       endpoint: this.sanitizeEndpoint(endpoint),
@@ -508,7 +639,14 @@ export class UnifiedMetrics {
   }
 
   async shutdown(): Promise<void> {
-    // No batching to flush - immediate export means nothing to do
+    // Flush any pending batched counters
+    await this.flushCounters();
+    
+    // Clear the batch timer
+    if (this.batchTimer) {
+      clearInterval(this.batchTimer);
+      this.batchTimer = null;
+    }
   }
 }
 

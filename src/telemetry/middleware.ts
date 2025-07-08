@@ -17,7 +17,7 @@ export class TelemetryMiddleware {
   }
 
   /**
-   * Wrap a tool function with metrics collection
+   * Wrap a tool function with metrics collection including latency
    */
   instrumentTool<T extends (...args: any[]) => Promise<any>>(
     toolName: string,
@@ -29,11 +29,11 @@ export class TelemetryMiddleware {
       try {
         const result = await toolFunction.apply(this, args);
         const duration_ms = Date.now() - startTime;
-        this.metrics.recordToolCall(toolName, duration_ms, 'success');
+        await this.metrics.recordToolCallWithLatency(toolName, duration_ms, 'success');
         return result;
       } catch (error) {
         const duration_ms = Date.now() - startTime;
-        this.metrics.recordToolCall(toolName, duration_ms, 'error');
+        await this.metrics.recordToolCallWithLatency(toolName, duration_ms, 'error');
         throw error;
       }
     }) as T;
@@ -51,19 +51,19 @@ export class TelemetryMiddleware {
   }
 
   /**
-   * Complete a tool execution context
+   * Complete a tool execution context with latency tracking
    */
-  completeToolContext(context: ToolExecutionContext, result?: any, error?: Error): void {
+  async completeToolContext(context: ToolExecutionContext, result?: any, error?: Error): Promise<void> {
     const duration_ms = Date.now() - context.startTime;
     const status = error ? 'error' : 'success';
-    this.metrics.recordToolCall(context.toolName, duration_ms, status);
+    await this.metrics.recordToolCallWithLatency(context.toolName, duration_ms, status);
   }
 
   /**
-   * Record API call metrics
+   * Record API call metrics with latency
    */
-  recordApiCall(endpoint: string, method: string, duration_ms: number, status: string): void {
-    this.metrics.recordApiCall(endpoint, method, duration_ms, status);
+  async recordApiCall(endpoint: string, method: string, duration_ms: number, statusCode: number): Promise<void> {
+    await this.metrics.recordApiCallWithLatency(endpoint, method, duration_ms, statusCode);
   }
 
   /**
@@ -84,5 +84,24 @@ export class TelemetryMiddleware {
     status: string;
   }): void {
     this.metrics.recordHotelSearchCall(params);
+  }
+
+  /**
+   * Instrument a fetch call with automatic telemetry
+   */
+  async instrumentedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+    const method = options.method || 'GET';
+    const startTime = Date.now();
+
+    try {
+      const response = await fetch(url, options);
+      const duration_ms = Date.now() - startTime;
+      await this.recordApiCall(url, method, duration_ms, response.status);
+      return response;
+    } catch (error) {
+      const duration_ms = Date.now() - startTime;
+      await this.recordApiCall(url, method, duration_ms, 0); // 0 for network errors
+      throw error;
+    }
   }
 }
