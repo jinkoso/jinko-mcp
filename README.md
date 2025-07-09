@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/jinkoso-jinko-mcp-badge.png)](https://mseep.ai/app/jinkoso-jinko-mcp)
+
 # Hotel Booking MCP Server
 
 We are the first MCP server to give access to 2 millions of hotels with shopping and booking capabilities. You can integrate our MCP and start to sell within minutes in your agents. The prod version is available on request by requesting it on our website https://www.jinko.so/. Feel free to reach out!
