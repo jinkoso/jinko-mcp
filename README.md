@@ -1,5 +1,7 @@
 # Hotel Booking MCP Server
 
+[![smithery badge](https://smithery.ai/badge/@jinkoso/jinko-mcp)](https://smithery.ai/server/@jinkoso/jinko-mcp)
+
 We are the first MCP server to give access to 2 millions of hotels with shopping and booking capabilities. You can integrate our MCP and start to sell within minutes in your agents. The prod version is available on request by requesting it on our website https://www.jinko.so/. Feel free to reach out!
 
 MCP (Model Context Protocol) is an open protocol that standardizes how applications provide context to LLMs - think of it as a USB-C port for AI applications, connecting models to external data sources and tools.
@@ -44,6 +46,15 @@ The MCP server uses stdio transport, which means it can be used directly with MC
 
 ## Installation
 
+### Installing via Smithery
+
+To install Hotel Booking Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@jinkoso/jinko-mcp):
+
+```bash
+npx -y @smithery/cli install @jinkoso/jinko-mcp --client claude
+```
+
+### Manual Installation
 You can install our MCP locally for now. Remote support is coming. For developers that want access to the production environment and earn commission on sales, please contact us via our website https://www.jinko.so/.
 
 ```bash
